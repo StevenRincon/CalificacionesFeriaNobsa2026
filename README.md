@@ -18,7 +18,7 @@ Las credenciales iniciales del administrador son `AlcaldiaNobsa` / `T1cN0b54`. P
   - `category: "educativos"` / `categoryName: "Proyectos educativos en robótica"` → Automatización.
 - `registrations` es de solo lectura desde RoboEval. Las inscripciones se gestionan desde el sistema que ya las crea; se reflejan al volver a cargar la aplicación.
 - Los accesos nuevos se crean para Automatización o Seguidores de Línea. Ambos tipos de inscripciones indicados arriba se muestran en la categoría Automatización y comparten el mismo panel de evaluación.
-- La ruta `GET /api/projects` consulta directamente `registrations` y devuelve la lista de proyectos con su categoría y calificaciones. El panel de administración permite volver a consultarla con el botón de actualización.
+- La ruta `GET /api/projects` consulta directamente `registrations` y devuelve todos los proyectos con su categoría y calificaciones. Se puede filtrar con `?category=bachillerato` o `?category=linea`; al seleccionar una categoría desde la interfaz, el navegador solicita esa categoría y registra en consola el estado HTTP y la cantidad recibida. El panel de administración permite consultar todas las categorías con el botón de actualización.
 - Evaluaciones, intentos, cuentas de jurado y sesiones se guardan por separado en `roboeval_evaluations`, `roboeval_accounts`, `roboeval_sessions` y `roboeval_state`. RoboEval no modifica los documentos de inscripción.
 - La cuenta inicial se inserta en `roboeval_accounts`; las contraseñas se guardan con hash scrypt. Las sesiones tienen vencimiento y el token se guarda con hash.
 

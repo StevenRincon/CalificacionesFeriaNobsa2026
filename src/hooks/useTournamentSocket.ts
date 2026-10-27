@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { TournamentState, WSMessage, LineAttempt, Project } from '../types.ts';
+import { CategoryId, TournamentState, WSMessage, LineAttempt, Project } from '../types.ts';
 import { INITIAL_TOURNAMENT_STATE } from '../data/defaultData.ts';
 
 export function useTournamentSocket() {
@@ -72,12 +72,42 @@ export function useTournamentSocket() {
     connect();
   }, [connect]);
 
-  const refreshProjects = useCallback(async () => {
-    const response = await fetch('/api/projects');
-    const result: { projects?: Project[]; error?: string } = await response.json();
+  const refreshProjects = useCallback(async (category?: CategoryId) => {
+    const url = category ? `/api/projects?category=${encodeURIComponent(category)}` : '/api/projects';
+    const response = await fetch(url);
+    console.info('[RoboEval] Respuesta de carga de proyectos', {
+      url,
+      status: response.status,
+      ok: response.ok,
+    });
+    const result: { projects?: Project[]; count?: number; error?: string } = await response.json();
+    console.info('[RoboEval] Proyectos recibidos', {
+      category: category || 'todas',
+      count: result.count,
+      validProjectList: Array.isArray(result.projects),
+    });
     if (!response.ok) throw new Error(result.error || `El servidor respondió ${response.status} al cargar proyectos.`);
     if (!Array.isArray(result.projects)) throw new Error('La API no devolvió una lista de proyectos válida.');
-    setState((current) => ({ ...current, projects: result.projects! }));
+    console.groupCollapsed(`[RoboEval] Lista de proyectos desde MongoDB (${result.projects.length})`);
+    console.log(result.projects);
+    console.table(result.projects.map(({ id, code, name, team, institution, categoryId }) => ({
+      id,
+      code,
+      name,
+      team,
+      institution,
+      categoryId,
+    })));
+    console.groupEnd();
+    setState((current) => ({
+      ...current,
+      projects: category
+        ? [
+            ...current.projects.filter((project) => project.categoryId !== category),
+            ...result.projects!,
+          ]
+        : result.projects!,
+    }));
   }, []);
 
   useEffect(() => {

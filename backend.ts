@@ -773,15 +773,28 @@ app.get('/api/state', async (_req: Request, res: Response, next: NextFunction) =
   }
 });
 
-app.get('/api/projects', async (_req: Request, res: Response, next: NextFunction) => {
+app.get('/api/projects', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const projects = await loadProjects(await getDatabase());
+    const allProjects = await loadProjects(await getDatabase());
+    const requestedCategory = req.query.category;
+    if (
+      requestedCategory !== undefined &&
+      requestedCategory !== 'primaria' &&
+      requestedCategory !== 'bachillerato' &&
+      requestedCategory !== 'linea'
+    ) {
+      res.status(400).json({ error: 'La categoría solicitada no es válida.' });
+      return;
+    }
+    const projects = requestedCategory
+      ? allProjects.filter((project) => project.categoryId === requestedCategory)
+      : allProjects;
     res.json({
       projects,
       count: projects.length,
       categories: {
-        automatizacion: projects.filter((project) => project.categoryId === 'bachillerato').length,
-        seguidores: projects.filter((project) => project.categoryId === 'linea').length,
+        automatizacion: allProjects.filter((project) => project.categoryId === 'bachillerato').length,
+        seguidores: allProjects.filter((project) => project.categoryId === 'linea').length,
       },
     });
   } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, Award, Download, Play, Pause, ShieldCheck, RefreshCw } from 'lucide-react';
 import { CategoryId, TournamentState } from '../types.ts';
 import { CATEGORIES } from '../data/defaultData.ts';
@@ -7,14 +7,20 @@ import { AdminAccountsPanel } from './AdminAccountsPanel.tsx';
 
 interface AdminPanelProps {
   state: TournamentState;
+  activeCategory: CategoryId;
   onUpdateEventStatus: (status: TournamentState['status']) => void;
   onRefreshProjects: () => Promise<void>;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ state, onUpdateEventStatus, onRefreshProjects }) => {
-  const [categoryFilter, setCategoryFilter] = useState<CategoryId | 'all'>('all');
+export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, onUpdateEventStatus, onRefreshProjects }) => {
+  const [categoryFilter, setCategoryFilter] = useState<CategoryId | 'all'>(activeCategory);
   const [refreshError, setRefreshError] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    setCategoryFilter(activeCategory);
+  }, [activeCategory]);
+
   const visibleProjects = useMemo(
     () => state.projects.filter((project) => categoryFilter === 'all' || project.categoryId === categoryFilter),
     [categoryFilter, state.projects]

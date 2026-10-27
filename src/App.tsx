@@ -67,12 +67,15 @@ export default function App() {
         if (user.assignedCategory && user.assignedCategory !== 'all') {
           setActiveCategory(user.assignedCategory);
         }
+        void refreshProjects().catch((error: unknown) => {
+          console.error('[RoboEval] No se pudo cargar la lista completa de proyectos al restaurar la sesión', error);
+        });
       })
       .catch((error: unknown) => console.error('No se pudo restaurar la sesión:', error));
     return () => {
       active = false;
     };
-  }, [reconnect]);
+  }, [reconnect, refreshProjects]);
 
   const handleToggleSound = () => {
     const next = !soundEnabled;
@@ -83,6 +86,9 @@ export default function App() {
   const handleUserSelect = (user: UserAccount) => {
     setCurrentUser(user);
     reconnect();
+    void refreshProjects().catch((error: unknown) => {
+      console.error('[RoboEval] No se pudo cargar la lista completa de proyectos después del inicio de sesión', error);
+    });
     if (user.assignedCategory && user.assignedCategory !== 'all') {
       setActiveCategory(user.assignedCategory);
       setCurrentView('jury');
@@ -113,6 +119,12 @@ export default function App() {
     })));
     if (!isAllowed) return;
     setActiveCategory(categoryId);
+    void refreshProjects(categoryId).catch((error: unknown) => {
+      console.error('[RoboEval] No se pudieron cargar los proyectos de la categoría seleccionada', {
+        categoryId,
+        error,
+      });
+    });
   };
 
   const handleChangeView = (view: 'public' | 'jury' | 'admin') => {
@@ -275,6 +287,7 @@ export default function App() {
           <div className="animate-fade-in">
             <AdminPanel
               state={state}
+              activeCategory={activeCategory}
               onUpdateEventStatus={updateEventStatus}
               onRefreshProjects={refreshProjects}
             />
