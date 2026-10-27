@@ -37,13 +37,14 @@ export default function App() {
     state,
     isConnected,
     reconnect,
+    refreshProjects,
     submitScore,
     submitLineAttempt,
     updateEventStatus,
   } = useTournamentSocket();
 
   const [currentUser, setCurrentUser] = useState<UserAccount>(VISITOR_USER);
-  const [activeCategory, setActiveCategory] = useState<CategoryId>('primaria');
+  const [activeCategory, setActiveCategory] = useState<CategoryId>('bachillerato');
   const [currentView, setCurrentView] = useState<'public' | 'jury' | 'admin'>('public');
 
   // Modals
@@ -260,6 +261,7 @@ export default function App() {
             <AdminPanel
               state={state}
               onUpdateEventStatus={updateEventStatus}
+              onRefreshProjects={refreshProjects}
             />
           </div>
         )}

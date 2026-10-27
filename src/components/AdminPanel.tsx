@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, Award, Download, Play, Pause, ShieldCheck } from 'lucide-react';
+import { Activity, Award, Download, Play, Pause, ShieldCheck, RefreshCw } from 'lucide-react';
 import { CategoryId, TournamentState } from '../types.ts';
 import { CATEGORIES } from '../data/defaultData.ts';
 import { formatScore, formatTime } from '../utils/formatters.ts';
@@ -8,10 +8,13 @@ import { AdminAccountsPanel } from './AdminAccountsPanel.tsx';
 interface AdminPanelProps {
   state: TournamentState;
   onUpdateEventStatus: (status: TournamentState['status']) => void;
+  onRefreshProjects: () => Promise<void>;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ state, onUpdateEventStatus }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({ state, onUpdateEventStatus, onRefreshProjects }) => {
   const [categoryFilter, setCategoryFilter] = useState<CategoryId | 'all'>('all');
+  const [refreshError, setRefreshError] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const visibleProjects = useMemo(
     () => state.projects.filter((project) => categoryFilter === 'all' || project.categoryId === categoryFilter),
     [categoryFilter, state.projects]
@@ -47,6 +50,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, onUpdateEventStat
     document.body.appendChild(link);
     link.click();
     link.remove();
+  };
+
+  const handleRefreshProjects = async () => {
+    setIsRefreshing(true);
+    setRefreshError('');
+    try {
+      await onRefreshProjects();
+    } catch (error) {
+      setRefreshError(error instanceof Error ? error.message : 'No se pudieron actualizar los proyectos.');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
@@ -94,9 +109,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, onUpdateEventStat
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <section className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
           <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-800">
-            <h3 className="text-sm font-bold text-white">
-              Proyectos inscritos <span className="ml-1 text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">{visibleProjects.length}</span>
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-white">
+                Proyectos inscritos <span className="ml-1 text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">{visibleProjects.length}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={handleRefreshProjects}
+                disabled={isRefreshing}
+                className="p-1.5 rounded border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50"
+                title="Volver a consultar registrations"
+                aria-label="Actualizar proyectos inscritos"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
             <label className="flex items-center gap-2 text-[11px] text-slate-400">
               CATEGORÍA
               <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as CategoryId | 'all')} className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-white">
@@ -105,6 +132,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, onUpdateEventStat
               </select>
             </label>
           </div>
+          {refreshError && <p role="alert" className="mt-2 text-xs text-rose-300">{refreshError}</p>}
           <div className="overflow-x-auto mt-3">
             <table className="w-full text-left text-xs border-collapse">
               <thead>

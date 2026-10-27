@@ -3,8 +3,7 @@ import { UserPlus, Users } from 'lucide-react';
 import { UserAccount } from '../types.ts';
 
 const roleLabels = {
-  jurado_primaria: 'Jurado — Primaria',
-  jurado_bachillerato: 'Jurado — Bachillerato',
+  jurado_bachillerato: 'Jurado — Automatización',
   cronometro_linea: 'Jurado — Seguidores de línea',
 } as const;
 
@@ -15,7 +14,7 @@ export const AdminAccountsPanel: React.FC = () => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<JuryRole>('jurado_primaria');
+  const [role, setRole] = useState<JuryRole>('jurado_bachillerato');
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
@@ -102,7 +101,7 @@ export const AdminAccountsPanel: React.FC = () => {
               <tr key={account.id}>
                 <td className="py-2 pr-3 text-white">{account.name}</td>
                 <td className="py-2 pr-3 font-mono text-cyan-300">{account.username}</td>
-                <td className="py-2 text-slate-300">{roleLabels[account.role as JuryRole] || account.badge}</td>
+                <td className="py-2 text-slate-300">{roleLabels[account.role as JuryRole] || (account.role === 'jurado_primaria' ? roleLabels.jurado_bachillerato : account.badge)}</td>
               </tr>
             ))}
             {accounts.length === 0 && <tr><td colSpan={3} className="py-3 text-slate-500">Aún no hay cuentas de jurado.</td></tr>}

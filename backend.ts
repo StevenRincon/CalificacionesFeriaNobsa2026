@@ -23,10 +23,10 @@ const scrypt = promisify(scryptCallback);
 const CATEGORY_VALUES: Record<string, CategoryId> = {
   seguidores: 'linea',
   automatizacion: 'bachillerato',
-  educativos: 'primaria',
+  educativos: 'bachillerato',
   'seguidores de linea': 'linea',
   'proyecto de automatizacion electronica': 'bachillerato',
-  'proyectos educativos en robotica': 'primaria',
+  'proyectos educativos en robotica': 'bachillerato',
 };
 
 interface RegistrationDocument {
@@ -277,6 +277,9 @@ function hashToken(token: string) {
 
 function publicAccount(account: StoredAccount): UserAccount {
   const { _id, usernameKey: _usernameKey, passwordSalt: _salt, passwordHash: _hash, ...safeAccount } = account;
+  if (account.role === 'jurado_primaria') {
+    return { ...safeAccount, role: 'jurado_bachillerato', assignedCategory: 'bachillerato', id: _id };
+  }
   return { ...safeAccount, id: _id };
 }
 
@@ -404,15 +407,12 @@ function getCollections(database: Db) {
   };
 }
 
-async function loadTournamentState(database: Db): Promise<TournamentState> {
+async function loadProjects(database: Db): Promise<Project[]> {
   const collections = getCollections(database);
-  const [registrations, metadata] = await Promise.all([
-    collections.registrations
-      .find({})
-      .sort({ code: 1 })
-      .toArray(),
-    collections.metadata.findOne({ _id: 'tournament' }),
-  ]);
+  const registrations = await collections.registrations
+    .find({})
+    .sort({ code: 1 })
+    .toArray();
   const projects = registrations
     .map(mapRegistration)
     .filter((project): project is Project => Boolean(project));
@@ -441,12 +441,23 @@ async function loadTournamentState(database: Db): Promise<TournamentState> {
     }
   }
 
+  return projects;
+}
+
+async function loadTournamentState(database: Db): Promise<TournamentState> {
+  const collections = getCollections(database);
+  const [projects, metadata] = await Promise.all([
+    loadProjects(database),
+    collections.metadata.findOne({ _id: 'tournament' }),
+  ]);
   const defaults = INITIAL_TOURNAMENT_STATE;
   return {
     title: metadata?.title || defaults.title,
     subtitle: metadata?.subtitle || defaults.subtitle,
     status: metadata?.status || defaults.status,
-    activeCategory: metadata?.activeCategory || defaults.activeCategory,
+    activeCategory: metadata?.activeCategory === 'primaria'
+      ? 'bachillerato'
+      : metadata?.activeCategory || defaults.activeCategory,
     projects,
     metrics: defaults.metrics,
     lastUpdated: metadata?.lastUpdated || new Date(0).toISOString(),
@@ -487,7 +498,9 @@ function canWrite(account: StoredAccount, message: WSMessage, state: TournamentS
       metrics.every((metric) => Number.isFinite(scores[metric.id]) && scores[metric.id] >= metric.min && scores[metric.id] <= metric.max);
     const validFeedback = message.payload.feedback === undefined ||
       (typeof message.payload.feedback === 'string' && message.payload.feedback.length <= 2000);
-    return account.role === `jurado_${project.categoryId}` && validScores && validFeedback;
+    const hasCategoryAccess = account.role === `jurado_${project.categoryId}` ||
+      (project.categoryId === 'bachillerato' && account.role === 'jurado_primaria');
+    return hasCategoryAccess && validScores && validFeedback;
   }
   if (message.type === 'SUBMIT_LINE_ATTEMPT') {
     const project = state.projects.find((item) => item.id === message.payload.projectId);
@@ -760,6 +773,22 @@ app.get('/api/state', async (_req: Request, res: Response, next: NextFunction) =
   }
 });
 
+app.get('/api/projects', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projects = await loadProjects(await getDatabase());
+    res.json({
+      projects,
+      count: projects.length,
+      categories: {
+        automatizacion: projects.filter((project) => project.categoryId === 'bachillerato').length,
+        seguidores: projects.filter((project) => project.categoryId === 'linea').length,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post('/api/auth/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const ip = req.ip || 'unknown';
@@ -859,19 +888,17 @@ app.post('/api/admin/accounts', requireAccount, requireAdmin, async (req: Authen
       name.trim().length < 2 ||
       typeof password !== 'string' ||
       password.length < 8 ||
-      !['jurado_primaria', 'jurado_bachillerato', 'cronometro_linea'].includes(role)
+      !['jurado_bachillerato', 'cronometro_linea'].includes(role)
     ) {
       res.status(400).json({ error: 'Datos inválidos: usuario (3-32 caracteres), nombre, contraseña (mínimo 8) y rol requerido.' });
       return;
     }
     const categoryByRole: Record<string, CategoryId> = {
-      jurado_primaria: 'primaria',
       jurado_bachillerato: 'bachillerato',
       cronometro_linea: 'linea',
     };
     const badgeByRole: Record<string, string> = {
-      jurado_primaria: 'Jurado Robótica Primaria',
-      jurado_bachillerato: 'Jurado Robótica Bachillerato',
+      jurado_bachillerato: 'Jurado de Automatización',
       cronometro_linea: 'Juez Oficial de Cronometraje',
     };
     const account = await createStoredAccount({

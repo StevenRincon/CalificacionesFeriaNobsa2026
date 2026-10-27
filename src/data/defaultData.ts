@@ -2,18 +2,10 @@ import { CategoryInfo, MetricDefinition, Project, TournamentState } from '../typ
 
 export const CATEGORIES: CategoryInfo[] = [
   {
-    id: 'primaria',
-    name: 'Automatización, Electrónica o Robótica para Primaria',
-    shortName: 'Robótica Primaria',
-    description: 'Proyectos desarrollados por estudiantes de nivel primaria enfocados en creatividad, conceptos básicos de automatización e impacto en su entorno.',
-    icon: 'Sparkles',
-    type: 'rubric',
-  },
-  {
     id: 'bachillerato',
-    name: 'Automatización electrónica o Robótica para Bachillerato',
-    shortName: 'Robótica Bachillerato',
-    description: 'Proyectos avanzados de estudiantes de secundaria y media vocacional con integración de circuitos, programación, control e ingeniería.',
+    name: 'Automatización y proyectos educativos en robótica',
+    shortName: 'Automatización',
+    description: 'Proyectos inscritos como automatización electrónica o proyectos educativos en robótica, evaluados por el jurado de Automatización.',
     icon: 'Cpu',
     type: 'rubric',
   },
@@ -448,7 +440,7 @@ export const INITIAL_TOURNAMENT_STATE: TournamentState = {
   title: 'Torneo Intercolegiado de Robótica & Automatización 2026',
   subtitle: 'Evaluación y Cronometraje Oficial en Vivo',
   status: 'active',
-  activeCategory: 'primaria',
+  activeCategory: 'bachillerato',
   projects: DEFAULT_PROJECTS,
   metrics: {
     primaria: DEFAULT_METRICS,

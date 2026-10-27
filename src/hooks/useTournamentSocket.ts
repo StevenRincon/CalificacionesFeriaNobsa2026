@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { TournamentState, WSMessage, LineAttempt } from '../types.ts';
+import { TournamentState, WSMessage, LineAttempt, Project } from '../types.ts';
 import { INITIAL_TOURNAMENT_STATE } from '../data/defaultData.ts';
 
 export function useTournamentSocket() {
@@ -72,8 +72,18 @@ export function useTournamentSocket() {
     connect();
   }, [connect]);
 
+  const refreshProjects = useCallback(async () => {
+    const response = await fetch('/api/projects');
+    const result: { projects?: Project[]; error?: string } = await response.json();
+    if (!response.ok) throw new Error(result.error || `El servidor respondió ${response.status} al cargar proyectos.`);
+    if (!Array.isArray(result.projects)) throw new Error('La API no devolvió una lista de proyectos válida.');
+    setState((current) => ({ ...current, projects: result.projects! }));
+  }, []);
+
   useEffect(() => {
     connect();
+
+    refreshProjects().catch((error: unknown) => console.error('No se pudieron cargar los proyectos inscritos:', error));
 
     // Fallback initial HTTP fetch
     fetch('/api/state')
@@ -105,7 +115,7 @@ export function useTournamentSocket() {
         socketRef.current.close();
       }
     };
-  }, [connect]);
+  }, [connect, refreshProjects]);
 
   const sendWsMessage = useCallback((msg: WSMessage) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
@@ -176,6 +186,7 @@ export function useTournamentSocket() {
     isConnected,
     lastMessageTime,
     reconnect,
+    refreshProjects,
     submitScore,
     submitLineAttempt,
     updateEventStatus,
