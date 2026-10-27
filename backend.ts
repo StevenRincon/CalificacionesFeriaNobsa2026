@@ -6,7 +6,6 @@ import { promisify } from 'util';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createServer as createViteServer } from 'vite';
 import { Collection, Db, MongoClient } from 'mongodb';
 import { INITIAL_TOURNAMENT_STATE } from './src/data/defaultData.ts';
 import { CategoryId, Project, TournamentState, UserAccount, WSMessage, LineAttempt } from './src/types.ts';
@@ -938,6 +937,7 @@ app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 async function startLocalServer() {
   if (!isProduction) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
   }
