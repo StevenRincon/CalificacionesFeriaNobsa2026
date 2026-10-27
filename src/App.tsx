@@ -92,11 +92,26 @@ export default function App() {
   };
 
   const handleSelectCategory = (categoryId: CategoryId) => {
-    if (
+    const category = CATEGORIES.find((item) => item.id === categoryId);
+    const categoryProjects = state.projects.filter((project) => project.categoryId === categoryId);
+    const isAllowed = !(
       currentUser.assignedCategory &&
       currentUser.assignedCategory !== 'all' &&
       currentUser.assignedCategory !== categoryId
-    ) return;
+    );
+    console.info('[RoboEval] Selección de categoría', {
+      categoryId,
+      categoryName: category?.name,
+      isAllowed,
+      totalProjectsLoaded: state.projects.length,
+      projectsInCategory: categoryProjects.length,
+    });
+    console.table(categoryProjects.map(({ code, name, categoryId: projectCategory }) => ({
+      code,
+      name,
+      categoryId: projectCategory,
+    })));
+    if (!isAllowed) return;
     setActiveCategory(categoryId);
   };
 
