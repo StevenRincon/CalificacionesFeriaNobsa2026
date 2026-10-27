@@ -79,7 +79,8 @@ export function useTournamentSocket() {
     fetch('/api/state')
       .then(async (res) => {
         if (!res.ok) {
-          throw new Error(`El servidor respondió ${res.status} al cargar el estado.`);
+          const result: { error?: string } = await res.json().catch(() => ({}));
+          throw new Error(result.error || `El servidor respondió ${res.status} al cargar el estado. Revisa /api/health.`);
         }
         return res.json() as Promise<TournamentState>;
       })

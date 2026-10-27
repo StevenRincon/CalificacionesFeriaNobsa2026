@@ -87,6 +87,19 @@ interface AuthenticatedRequest extends Request {
   account?: StoredAccount;
 }
 
+type DatabaseFailureStage = 'configuration' | 'uri' | 'connection' | 'initialization' | 'query';
+
+class DatabaseDiagnosticError extends Error {
+  constructor(
+    readonly stage: DatabaseFailureStage,
+    readonly code: string,
+    readonly guidance: string
+  ) {
+    super(`MongoDB failure during ${stage}: ${code}`);
+    this.name = 'DatabaseDiagnosticError';
+  }
+}
+
 const globalMongo = globalThis as typeof globalThis & {
   roboevalMongoClientPromise?: Promise<MongoClient>;
   roboevalDatabaseReady?: Promise<Db>;
@@ -96,23 +109,98 @@ const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 let wss: WebSocketServer;
 
 function logError(context: string, error: unknown) {
+  if (error instanceof DatabaseDiagnosticError) {
+    console.error(`${context}: stage=${error.stage}, code=${error.code}`);
+    return;
+  }
   const name = error instanceof Error ? error.name : 'UnknownError';
   const code = error && typeof error === 'object' && 'code' in error
-    ? ` (${String(error.code)})`
+    ? `, code=${String(error.code)}`
     : '';
-  console.error(`${context}: ${name}${code}`);
+  console.error(`${context}: name=${name}${code}`);
+}
+
+function classifyMongoFailure(
+  error: unknown,
+  fallbackStage: DatabaseFailureStage
+): DatabaseDiagnosticError {
+  if (error instanceof DatabaseDiagnosticError) return error;
+  const mongoError = error && typeof error === 'object' ? error as { name?: string; code?: string | number } : {};
+  const code = mongoError.code === undefined ? mongoError.name || 'UNKNOWN' : String(mongoError.code);
+  if (mongoError.name === 'MongoParseError' || code === 'ERR_INVALID_URL') {
+    return new DatabaseDiagnosticError(
+      'uri',
+      code,
+      'MONGODB_URI no tiene un formato válido. Usa la URI mongodb+srv:// de Atlas y codifica caracteres especiales en usuario y contraseña.'
+    );
+  }
+  if (code === '18' || code === 'AuthenticationFailed') {
+    return new DatabaseDiagnosticError(
+      fallbackStage,
+      code,
+      'Atlas rechazó la autenticación. Verifica usuario y contraseña de base de datos, caracteres especiales codificados y authSource.'
+    );
+  }
+  if (code === '13' || code === 'Unauthorized') {
+    return new DatabaseDiagnosticError(
+      fallbackStage,
+      code,
+      'La conexión llegó a MongoDB, pero el usuario no tiene permisos suficientes. Asigna el rol readWrite sobre la base configurada.'
+    );
+  }
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
+    return new DatabaseDiagnosticError(
+      'connection',
+      code,
+      'No se pudo resolver el host de MongoDB. Revisa el host/SRV de MONGODB_URI y la configuración DNS.'
+    );
+  }
+  if (code === 'ECONNREFUSED' || code === 'ETIMEDOUT' || code === 'ECONNRESET' || code === 'MongoServerSelectionError') {
+    return new DatabaseDiagnosticError(
+      'connection',
+      code,
+      'No se pudo alcanzar el clúster. Verifica que esté activo y que Network Access de Atlas permita conexiones desde Vercel o desde tu IP local.'
+    );
+  }
+  if (code === 'MongoNetworkError') {
+    return new DatabaseDiagnosticError(
+      'connection',
+      code,
+      'Falló la comunicación con MongoDB. Revisa el host de la URI, DNS, el estado del clúster y Network Access.'
+    );
+  }
+  if (fallbackStage === 'initialization') {
+    return new DatabaseDiagnosticError(
+      'initialization',
+      code,
+      'La conexión se abrió, pero no se pudo preparar la base. Revisa que la base exista y que el usuario tenga permiso readWrite para crear índices y guardar documentos.'
+    );
+  }
+  return new DatabaseDiagnosticError(
+    fallbackStage,
+    code,
+    'Revisa los Runtime Logs de Vercel para identificar el comando de MongoDB que falló y los permisos del usuario.'
+  );
 }
 
 function getMongoClient() {
   if (!process.env.MONGODB_URI) {
-    throw new Error('Falta MONGODB_URI. Configura la conexión a MongoDB en .env o en las variables de Vercel.');
+    throw new DatabaseDiagnosticError(
+      'configuration',
+      'MONGODB_URI_MISSING',
+      'No está definida la variable MONGODB_URI en este entorno. Añádela en Environment Variables de Vercel o en el archivo .env local y vuelve a desplegar/reiniciar.'
+    );
   }
   if (!globalMongo.roboevalMongoClientPromise) {
-    const client = new MongoClient(process.env.MONGODB_URI);
-    globalMongo.roboevalMongoClientPromise = client.connect().then(() => client).catch((error: unknown) => {
-      globalMongo.roboevalMongoClientPromise = undefined;
-      throw error;
-    });
+    try {
+      const client = new MongoClient(process.env.MONGODB_URI);
+      globalMongo.roboevalMongoClientPromise = client.connect().then(() => client).catch((error: unknown) => {
+        globalMongo.roboevalMongoClientPromise = undefined;
+        throw classifyMongoFailure(error, 'connection');
+      });
+    } catch (error) {
+      throw classifyMongoFailure(error, 'uri');
+    }
   }
   return globalMongo.roboevalMongoClientPromise;
 }
@@ -124,7 +212,11 @@ async function getDatabase() {
         const database = process.env.MONGODB_DB
           ? client.db(process.env.MONGODB_DB)
           : client.db();
-        await initializeCollections(database);
+        try {
+          await initializeCollections(database);
+        } catch (error) {
+          throw classifyMongoFailure(error, 'initialization');
+        }
         return database;
       })
       .catch((error: unknown) => {
@@ -519,13 +611,71 @@ if (isProduction) {
 }
 
 app.use(express.json({ limit: '1mb' }));
+
+app.get('/api/health', async (_req: Request, res: Response) => {
+  const uriConfigured = Boolean(process.env.MONGODB_URI);
+  const databaseConfigured = Boolean(process.env.MONGODB_DB || process.env.MONGODB_URI);
+  let stage: DatabaseFailureStage = 'connection';
+  try {
+    const database = await getDatabase();
+    await database.command({ ping: 1 });
+    stage = 'query';
+    const registrationsCollectionExists = await database.listCollections(
+      { name: 'registrations' },
+      { nameOnly: true }
+    ).hasNext();
+    const registration = registrationsCollectionExists
+      ? await collection<RegistrationDocument>(database, 'registrations')
+          .findOne({}, { projection: { _id: 1 } })
+      : null;
+    res.json({
+      ok: true,
+      checks: {
+        uriConfigured,
+        databaseConfigured,
+        connection: 'ok',
+        databaseAccess: 'ok',
+        registrationsCollectionExists,
+        registrationsReadable: registrationsCollectionExists && registration !== null,
+      },
+      note: !registrationsCollectionExists
+        ? 'La conexión funciona, pero no existe la colección registrations en la base seleccionada.'
+        : registration === null
+        ? 'La colección registrations existe, pero no contiene documentos.'
+        : 'MongoDB y la colección de inscripciones responden correctamente.',
+    });
+  } catch (error) {
+    const diagnostic = classifyMongoFailure(error, stage);
+    logError('Database health check failed', diagnostic);
+    res.status(503).json({
+      ok: false,
+      checks: {
+        uriConfigured,
+        databaseConfigured,
+        connection: diagnostic.stage === 'connection' ? 'failed' : 'not_checked',
+        databaseAccess: diagnostic.stage === 'initialization' || diagnostic.stage === 'query' ? 'failed' : 'not_checked',
+        registrationsReadable: 'not_checked',
+      },
+      diagnostic: {
+        stage: diagnostic.stage,
+        code: diagnostic.code,
+        message: diagnostic.guidance,
+      },
+    });
+  }
+});
+
 app.use(async (_req: Request, res: Response, next: NextFunction) => {
   try {
     await getDatabase();
     next();
   } catch (error) {
-    logError('MongoDB connection or initialization failed', error);
-    res.status(503).json({ error: 'No fue posible conectar con la base de datos. Revisa MONGODB_URI y los permisos de MongoDB Atlas.' });
+    const diagnostic = classifyMongoFailure(error, 'connection');
+    logError('MongoDB connection or initialization failed', diagnostic);
+    res.status(503).json({
+      error: diagnostic.guidance,
+      diagnostic: { stage: diagnostic.stage, code: diagnostic.code },
+    });
   }
 });
 
@@ -776,8 +926,14 @@ if (isProduction) {
 }
 
 app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
-  logError('Request failed', error);
-  if (!res.headersSent) res.status(500).json({ error: 'Error interno procesando la solicitud.' });
+  const diagnostic = classifyMongoFailure(error, 'query');
+  logError('Request failed', diagnostic);
+  if (!res.headersSent) {
+    res.status(diagnostic.stage === 'query' ? 500 : 503).json({
+      error: diagnostic.guidance,
+      diagnostic: { stage: diagnostic.stage, code: diagnostic.code },
+    });
+  }
 });
 
 async function startLocalServer() {

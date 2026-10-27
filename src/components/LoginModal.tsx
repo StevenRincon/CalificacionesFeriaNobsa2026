@@ -30,7 +30,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSelec
       if (!response.ok) {
         throw new Error(
           result.error ||
-          `El servidor respondió ${response.status}. Comprueba que el último despliegue incluya la función API.`
+          (response.status === 404
+            ? 'Vercel no encontró la función de autenticación. Verifica que el último commit se haya desplegado en producción y que api/auth/login.ts aparezca en el deployment.'
+            : `El servidor respondió ${response.status}. Abre /api/health para ver el diagnóstico de MongoDB.`)
         );
       }
       if (!result.user) throw new Error('El servidor no devolvió una cuenta válida.');
