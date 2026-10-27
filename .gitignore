@@ -1,0 +1,10 @@
+node_modules/
+build/
+dist/
+coverage/
+data/tournament-store.json
+data/tournament-store.json.tmp
+.DS_Store
+*.log
+.env*
+!.env.example

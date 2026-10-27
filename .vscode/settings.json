@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^npm install --dry-run --ignore-scripts --no-audit --no-fund$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
