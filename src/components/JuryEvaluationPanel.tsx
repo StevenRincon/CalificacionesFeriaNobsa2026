@@ -164,16 +164,17 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
             aria-labelledby="evaluation-title"
             className="w-full max-w-3xl max-h-[95dvh] sm:max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-cyan-500/40 bg-[#080b12] shadow-2xl"
           >
-            <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-cyan-500/20 bg-[#080b12]/95 p-4 backdrop-blur">
-              <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-wider text-cyan-300">Evaluación del proyecto</p>
-                <h2 id="evaluation-title" className="mt-1 text-lg font-bold leading-snug text-white break-words">
-                  {selectedProject.name}
-                </h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  {selectedProject.members?.length ? selectedProject.members.join(', ') : selectedProject.team}
-                </p>
-              </div>
+            <header className="sticky top-0 z-10 border-b border-cyan-500/20 bg-[#080b12]/95 p-3 sm:p-4 backdrop-blur">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-wider text-cyan-300">Evaluación del proyecto</p>
+                  <h2 id="evaluation-title" className="mt-1 text-base sm:text-lg font-bold leading-snug text-white break-words">
+                    {selectedProject.name}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {selectedProject.members?.length ? selectedProject.members.join(', ') : selectedProject.team}
+                  </p>
+                </div>
               <button
                 type="button"
                 onClick={() => setSelectedProjectId(null)}
@@ -182,14 +183,14 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
               >
                 <X className="w-5 h-5" />
               </button>
+              </div>
+              <div className="mt-3 flex items-center justify-between rounded border border-cyan-500/40 bg-cyan-950/60 px-3 py-2 shadow-lg">
+                <span className="text-xs sm:text-sm font-semibold text-slate-200">Puntaje global</span>
+                <span className="text-xl sm:text-2xl font-black text-cyan-300">{currentTotal.toFixed(2)} / 5.00</span>
+              </div>
             </header>
 
             <form onSubmit={handleSave} className="space-y-5 p-4 sm:p-6">
-              <div className="flex items-center justify-between rounded border border-cyan-500/30 bg-cyan-950/30 p-3">
-                <span className="text-sm font-semibold text-slate-200">Puntaje total</span>
-                <span className="text-2xl font-black text-cyan-300">{currentTotal.toFixed(2)} / 5.00</span>
-              </div>
-
               <div className="space-y-3">
                 {metrics.map((metric, index) => {
                   const value = scores[metric.id] ?? 4;

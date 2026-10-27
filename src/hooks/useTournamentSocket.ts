@@ -191,15 +191,18 @@ export function useTournamentSocket() {
     [sendWsMessage]
   );
 
-  const submitLineAttempt = useCallback(
-    (projectId: string, attempt: LineAttempt) => {
-      sendWsMessage({
-        type: 'SUBMIT_LINE_ATTEMPT',
-        payload: { projectId, attempt },
-      });
-    },
-    [sendWsMessage]
-  );
+  const submitLineAttempt = useCallback(async (projectId: string, attempt: LineAttempt) => {
+    const response = await fetch('/api/line-attempt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId, attempt }),
+    });
+    const result: { success?: boolean; state?: TournamentState; error?: string } = await response.json();
+    if (!response.ok || !result.success || !result.state) {
+      throw new Error(result.error || `El servidor respondió ${response.status} y no confirmó el guardado del intento.`);
+    }
+    setState(result.state);
+  }, []);
 
   const updateEventStatus = useCallback(
     (status: TournamentState['status']) => {

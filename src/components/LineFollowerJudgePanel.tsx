@@ -23,7 +23,7 @@ import { soundFx } from '../utils/audio.ts';
 interface LineFollowerJudgePanelProps {
   projects: Project[];
   currentUser: UserAccount;
-  onSubmitLineAttempt: (projectId: string, attempt: LineAttempt) => void;
+  onSubmitLineAttempt: (projectId: string, attempt: LineAttempt) => Promise<void>;
 }
 
 export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
@@ -109,6 +109,8 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
     { attemptNumber: 3, timeSeconds: 0, completedTrack: false, notes: '' },
   ]);
   const [savedSuccessAttempt, setSavedSuccessAttempt] = useState<number | null>(null);
+  const [savingAttempt, setSavingAttempt] = useState<number | null>(null);
+  const [saveError, setSaveError] = useState('');
 
   // Sync draft when project changes
   useEffect(() => {
@@ -149,17 +151,24 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
     soundFx.playBeep(800, 0.1);
   };
 
-  const saveAttempt = (attemptNum: 1 | 2 | 3) => {
+  const saveAttempt = async (attemptNum: 1 | 2 | 3) => {
     if (!selectedProject) return;
     const target = draftAttempts.find((a) => a.attemptNumber === attemptNum);
     if (!target) return;
 
-    onSubmitLineAttempt(selectedProject.id, target);
-    soundFx.playLapOrFinish();
-    setSavedSuccessAttempt(attemptNum);
-    setTimeout(() => {
-      setSavedSuccessAttempt(null);
-    }, 2500);
+    setSavingAttempt(attemptNum);
+    setSaveError('');
+    setSavedSuccessAttempt(null);
+    try {
+      await onSubmitLineAttempt(selectedProject.id, target);
+      soundFx.playLapOrFinish();
+      setSavedSuccessAttempt(attemptNum);
+      setTimeout(() => setSavedSuccessAttempt(null), 2500);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el tiempo.');
+    } finally {
+      setSavingAttempt(null);
+    }
   };
 
   const stats = selectedProject ? computeLineStats(selectedProject.attempts) : null;
@@ -361,6 +370,11 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
 
               {/* 3 Attempts Blocks */}
               <div className="space-y-4">
+                {saveError && (
+                  <p role="alert" className="rounded border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
+                    {saveError}
+                  </p>
+                )}
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                   <Gauge className="w-4 h-4 text-cyan-400" />
                   Registro de Intentos Reglamentarios (1, 2 y 3)
@@ -475,13 +489,18 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
                             <button
                               type="button"
                               onClick={() => saveAttempt(att.attemptNumber)}
+                              disabled={savingAttempt === att.attemptNumber}
                               className={`w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                                isSuccess
+                                savingAttempt === att.attemptNumber
+                                  ? 'bg-slate-600 text-white'
+                                  : isSuccess
                                   ? 'bg-emerald-600 text-white shadow-md'
                                   : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-600/20 active:scale-95'
                               }`}
                             >
-                              {isSuccess ? (
+                              {savingAttempt === att.attemptNumber ? (
+                                <span>Guardando…</span>
+                              ) : isSuccess ? (
                                 <>
                                   <CheckCircle2 className="w-3.5 h-3.5" />
                                   <span>¡Guardado!</span>

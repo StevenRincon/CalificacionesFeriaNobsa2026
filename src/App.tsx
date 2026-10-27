@@ -292,9 +292,7 @@ export default function App() {
               <LineFollowerJudgePanel
                 projects={state.projects}
                 currentUser={currentUser}
-                onSubmitLineAttempt={(projId, attempt) => {
-                  submitLineAttempt(projId, attempt);
-                }}
+                onSubmitLineAttempt={(projId, attempt) => submitLineAttempt(projId, attempt)}
               />
             ) : (
               <JuryEvaluationPanel
