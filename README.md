@@ -24,7 +24,7 @@ Los demás datos del equipo, institución o descripción son opcionales; el mape
 
 ## Vercel y actualizaciones en vivo
 
-La función comodín `api/[...path].ts` publica las rutas Express de autenticación y datos, y `/api/ws` expone el WebSocket. Configura en Vercel `MONGODB_URI` y, si el nombre de la base no está en la URI, `MONGODB_DB`. Configura también `ADMIN_USERNAME` y `ADMIN_PASSWORD` como variables de entorno antes del primer despliegue. Mantén acceso de red de Atlas permitido para Vercel.
+Cada endpoint tiene su propia función bajo `api/` y `api/ws.ts` exporta el servidor HTTP para WebSockets. El backend compartido está en `backend.ts` y no se usa como función en la raíz, para evitar que Vercel lo trate como un handler distinto. Configura en Vercel `MONGODB_URI` y, si el nombre de la base no está en la URI, `MONGODB_DB`. Configura también `ADMIN_USERNAME` y `ADMIN_PASSWORD` como variables de entorno antes del primer despliegue. Mantén acceso de red de Atlas permitido para Vercel.
 
 WebSockets usa MongoDB Change Streams sobre `roboeval_state` para notificar cambios entre instancias; requiere un clúster Atlas compatible con Change Streams. Las conexiones WebSocket de Vercel son beta y pueden cerrarse por duración máxima; el cliente se reconecta y recibe el estado actual al reconectar. Las inscripciones externas aparecen al recargar la app, mientras que las calificaciones se sincronizan en vivo.
 

@@ -510,7 +510,7 @@ async function handleWsMessage(message: WSMessage, account: StoredAccount | unde
   return true;
 }
 
-const app = express();
+export const app = express();
 const server = http.createServer(app);
 wss = new WebSocketServer({ server, path: '/api/ws' });
 
@@ -797,4 +797,4 @@ if (!isVercel) {
   });
 }
 
-export default server;
+export { server };
