@@ -201,6 +201,18 @@ export function useTournamentSocket() {
     if (!response.ok || !result.success || !result.state) {
       throw new Error(result.error || `El servidor respondió ${response.status} y no confirmó el guardado del intento.`);
     }
+    const savedAttempt = result.state.projects
+      .find((project) => project.id === projectId)
+      ?.attempts?.find((saved) => saved.attemptNumber === attempt.attemptNumber);
+    if (savedAttempt?.timeSeconds !== attempt.timeSeconds) {
+      throw new Error('El servidor respondió correctamente, pero el tiempo guardado no coincide con el enviado.');
+    }
+    console.info('[RoboEval] Tiempo confirmado por el servidor', {
+      projectId,
+      attemptNumber: attempt.attemptNumber,
+      timeSeconds: savedAttempt.timeSeconds,
+      recordedAt: savedAttempt.recordedAt,
+    });
     setState(result.state);
   }, []);
 

@@ -90,7 +90,10 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
   };
 
   const getStopwatchSeconds = (): number => {
-    return Number((elapsedMs / 1000).toFixed(2));
+    const currentElapsedMs = timerRunning
+      ? performance.now() - timerStartRef.current
+      : elapsedMs;
+    return Number((currentElapsedMs / 1000).toFixed(2));
   };
 
   const formatStopwatchDisplay = (ms: number) => {
@@ -156,15 +159,45 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
     const target = draftAttempts.find((a) => a.attemptNumber === attemptNum);
     if (!target) return;
 
+    const timeSeconds = target.timeSeconds > 0 ? target.timeSeconds : getStopwatchSeconds();
+    if (timeSeconds <= 0) {
+      const error = 'Registra un tiempo o carga el tiempo del cronómetro antes de guardar.';
+      setSaveError(error);
+      console.error('[RoboEval] Intento no guardado: no hay un tiempo mayor que cero.', {
+        projectId: selectedProject.id,
+        attemptNumber: attemptNum,
+        enteredTime: target.timeSeconds,
+        stopwatchTime: getStopwatchSeconds(),
+      });
+      return;
+    }
+
+    const attemptToSave: LineAttempt = { ...target, timeSeconds };
+    setDraftAttempts((current) => current.map((attempt) =>
+      attempt.attemptNumber === attemptNum ? attemptToSave : attempt
+    ));
     setSavingAttempt(attemptNum);
     setSaveError('');
     setSavedSuccessAttempt(null);
     try {
-      await onSubmitLineAttempt(selectedProject.id, target);
+      console.info('[RoboEval] Guardando tiempo de Seguidores de Línea', {
+        projectId: selectedProject.id,
+        projectName: selectedProject.name,
+        attemptNumber: attemptNum,
+        timeSeconds: attemptToSave.timeSeconds,
+        completedTrack: attemptToSave.completedTrack,
+      });
+      await onSubmitLineAttempt(selectedProject.id, attemptToSave);
       soundFx.playLapOrFinish();
       setSavedSuccessAttempt(attemptNum);
       setTimeout(() => setSavedSuccessAttempt(null), 2500);
     } catch (error) {
+      console.error('[RoboEval] Error guardando intento de Seguidores de Línea', {
+        projectId: selectedProject.id,
+        attemptNumber: attemptNum,
+        timeSeconds: attemptToSave.timeSeconds,
+        error,
+      });
       setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el tiempo.');
     } finally {
       setSavingAttempt(null);
