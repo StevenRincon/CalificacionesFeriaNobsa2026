@@ -26,9 +26,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSelec
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'No se pudo iniciar sesión.');
-      onSelectUser(result.user as UserAccount);
+      const result: { error?: string; user?: UserAccount } = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+          `El servidor respondió ${response.status}. Comprueba que el último despliegue incluya la función API.`
+        );
+      }
+      if (!result.user) throw new Error('El servidor no devolvió una cuenta válida.');
+      onSelectUser(result.user);
       setUsername('');
       setPassword('');
       onClose();

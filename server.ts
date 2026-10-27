@@ -512,7 +512,7 @@ async function handleWsMessage(message: WSMessage, account: StoredAccount | unde
 
 const app = express();
 const server = http.createServer(app);
-wss = new WebSocketServer({ server, path: '/ws' });
+wss = new WebSocketServer({ server, path: '/api/ws' });
 
 if (isProduction) {
   app.use(express.static(path.join(__dirname, 'dist')));
@@ -786,7 +786,7 @@ async function startLocalServer() {
     app.use(vite.middlewares);
   }
   server.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`RoboEval Live Server running on http://0.0.0.0:${PORT} (WS on /ws)`);
+    console.log(`RoboEval Live Server running on http://0.0.0.0:${PORT} (WS on /api/ws)`);
   });
 }
 

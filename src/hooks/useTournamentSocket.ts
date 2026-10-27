@@ -17,7 +17,7 @@ export function useTournamentSocket() {
   const connect = useCallback(() => {
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      const wsUrl = `${protocol}//${window.location.host}/api/ws`;
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
@@ -77,8 +77,13 @@ export function useTournamentSocket() {
 
     // Fallback initial HTTP fetch
     fetch('/api/state')
-      .then((res) => res.json())
-      .then((data: TournamentState) => {
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`El servidor respondió ${res.status} al cargar el estado.`);
+        }
+        return res.json() as Promise<TournamentState>;
+      })
+      .then((data) => {
         if (data && data.projects) {
           setState(data);
         }
