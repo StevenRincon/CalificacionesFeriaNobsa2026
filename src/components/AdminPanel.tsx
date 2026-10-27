@@ -134,7 +134,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, onUpdateEventStat
                     </tr>
                   );
                 })}
-                {visibleProjects.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-slate-500">No hay inscripciones para esta categoría.</td></tr>}
+                {visibleProjects.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-6 text-center text-slate-500">
+                      No se recibieron proyectos para esta categoría.{' '}
+                      <a href="/api/health" target="_blank" rel="noreferrer" className="text-cyan-300 underline">
+                        Revisar diagnóstico de base de datos
+                      </a>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

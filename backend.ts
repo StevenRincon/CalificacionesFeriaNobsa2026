@@ -20,13 +20,10 @@ const SESSION_COOKIE = 'roboeval_session';
 const SESSION_TTL_SECONDS = 12 * 60 * 60;
 const scrypt = promisify(scryptCallback);
 
-const CATEGORY_BY_CODE: Record<string, CategoryId> = {
+const CATEGORY_VALUES: Record<string, CategoryId> = {
   seguidores: 'linea',
   automatizacion: 'bachillerato',
   educativos: 'primaria',
-};
-
-const CATEGORY_BY_NAME: Record<string, CategoryId> = {
   'seguidores de linea': 'linea',
   'proyecto de automatizacion electronica': 'bachillerato',
   'proyectos educativos en robotica': 'primaria',
@@ -347,13 +344,19 @@ function asString(value: unknown, fallback: string) {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback;
 }
 
-function categoryFromRegistration(registration: RegistrationDocument): CategoryId | undefined {
-  const code = typeof registration.category === 'string' ? registration.category.trim().toLowerCase() : '';
-  if (CATEGORY_BY_CODE[code]) return CATEGORY_BY_CODE[code];
-  const name = typeof registration.categoryName === 'string'
-    ? registration.categoryName.trim().toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+function normalizeCategoryValue(value: unknown): string {
+  return typeof value === 'string'
+    ? value.trim().toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     : '';
-  return CATEGORY_BY_NAME[name];
+}
+
+function categoryFromFields(category: unknown, categoryName: unknown): CategoryId | undefined {
+  return CATEGORY_VALUES[normalizeCategoryValue(category)]
+    || CATEGORY_VALUES[normalizeCategoryValue(categoryName)];
+}
+
+function categoryFromRegistration(registration: RegistrationDocument): CategoryId | undefined {
+  return categoryFromFields(registration.category, registration.categoryName);
 }
 
 function mapRegistration(registration: RegistrationDocument): Project | undefined {
@@ -623,10 +626,34 @@ app.get('/api/health', async (_req: Request, res: Response) => {
       { name: 'registrations' },
       { nameOnly: true }
     ).hasNext();
-    const registration = registrationsCollectionExists
-      ? await collection<RegistrationDocument>(database, 'registrations')
-          .findOne({}, { projection: { _id: 1 } })
-      : null;
+    const registrations = collection<RegistrationDocument>(database, 'registrations');
+    const [registrationCount, categoryGroups] = registrationsCollectionExists
+      ? await Promise.all([
+          registrations.countDocuments(),
+          registrations.aggregate<{
+            _id: { category: unknown; categoryName: unknown };
+            count: number;
+          }>([
+            {
+              $group: {
+                _id: { category: '$category', categoryName: '$categoryName' },
+                count: { $sum: 1 },
+              },
+            },
+          ]).toArray(),
+        ])
+      : [0, []];
+    const projectCounts: Record<CategoryId, number> = {
+      primaria: 0,
+      bachillerato: 0,
+      linea: 0,
+    };
+    let unrecognizedCategoryCount = 0;
+    for (const group of categoryGroups) {
+      const categoryId = categoryFromFields(group._id.category, group._id.categoryName);
+      if (categoryId) projectCounts[categoryId] += group.count;
+      else unrecognizedCategoryCount += group.count;
+    }
     res.json({
       ok: true,
       checks: {
@@ -635,12 +662,21 @@ app.get('/api/health', async (_req: Request, res: Response) => {
         connection: 'ok',
         databaseAccess: 'ok',
         registrationsCollectionExists,
-        registrationsReadable: registrationsCollectionExists && registration !== null,
+        registrationsReadable: registrationsCollectionExists && registrationCount > 0,
+      },
+      source: {
+        databaseName: database.databaseName,
+        collectionName: 'registrations',
+        registrationCount,
+        recognizedProjectCounts: projectCounts,
+        unrecognizedCategoryCount,
       },
       note: !registrationsCollectionExists
         ? 'La conexión funciona, pero no existe la colección registrations en la base seleccionada.'
-        : registration === null
+        : registrationCount === 0
         ? 'La colección registrations existe, pero no contiene documentos.'
+        : unrecognizedCategoryCount > 0
+        ? 'La colección contiene documentos, pero algunas categorías no coinciden con las categorías configuradas.'
         : 'MongoDB y la colección de inscripciones responden correctamente.',
     });
   } catch (error) {
