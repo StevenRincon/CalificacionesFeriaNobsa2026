@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Collection, Db, MongoClient } from 'mongodb';
 import { INITIAL_TOURNAMENT_STATE } from './src/data/defaultData.ts';
-import { CategoryId, Project, TournamentState, UserAccount, WSMessage, LineAttempt } from './src/types.ts';
+import { CategoryId, Project, ProjectScoreItem, TournamentState, UserAccount, WSMessage, LineAttempt } from './src/types.ts';
 import { computeLineStats, computeRubricStats } from './src/utils/formatters.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -472,7 +472,7 @@ async function loadProjects(database: Db): Promise<Project[]> {
       project.completedRunsCount = stats.completedRunsCount;
       project.hasCompletedTrack = stats.hasCompletedTrack;
     } else {
-      project.scores = evaluation.scores || {};
+      project.scores = normalizeStoredRubricScores(evaluation.scores || {});
       const stats = computeRubricStats(project.scores);
       project.averageScore = stats.averageScore;
       project.evaluationsCount = stats.evaluationsCount;
@@ -480,6 +480,46 @@ async function loadProjects(database: Db): Promise<Project[]> {
   }
 
   return projects;
+}
+
+function normalizeStoredRubricScores(scores: Project['scores']): Project['scores'] {
+  if (!scores) return {};
+  const metricWeights: Record<string, number> = {
+    m1_innovacion: 0.30,
+    m2_estetica: 0.20,
+    m3_impacto: 0.15,
+    m4_poster: 0.10,
+    m5_sustentacion: 0.25,
+  };
+
+  const upgraded: Record<string, ProjectScoreItem> = {};
+  for (const [jurorId, evaluation] of Object.entries(scores)) {
+    const oldScores = evaluation.scores;
+    const hasLegacyRubric = ['m2_tecnica', 'm3_sustentacion', 'm4_impacto']
+      .some((metricId) => Object.hasOwn(oldScores, metricId));
+    if (!hasLegacyRubric) {
+      upgraded[jurorId] = evaluation;
+      continue;
+    }
+    const scoreToNewScale = (value: number | undefined) =>
+      value === undefined ? 70 : Math.max(10, Math.min(100, Math.round(value * 20)));
+    const newScores: Record<string, number> = {
+      m1_innovacion: scoreToNewScale(oldScores.m1_innovacion),
+      m2_estetica: 70,
+      m3_impacto: scoreToNewScale(oldScores.m4_impacto),
+      m4_poster: 70,
+      m5_sustentacion: scoreToNewScale(oldScores.m3_sustentacion),
+    };
+    const totalScore = Number(Object.entries(metricWeights)
+      .reduce((total, [metricId, weight]) => total + newScores[metricId] * weight, 0)
+      .toFixed(2));
+    upgraded[jurorId] = {
+      ...evaluation,
+      scores: newScores,
+      totalScore,
+    };
+  }
+  return upgraded;
 }
 
 async function loadTournamentState(database: Db): Promise<TournamentState> {
@@ -533,7 +573,12 @@ function canWrite(account: StoredAccount, message: WSMessage, state: TournamentS
       typeof scores === 'object' &&
       !Array.isArray(scores) &&
       Object.keys(scores).length === metrics.length &&
-      metrics.every((metric) => Number.isFinite(scores[metric.id]) && scores[metric.id] >= metric.min && scores[metric.id] <= metric.max);
+      metrics.every((metric) =>
+        Number.isFinite(scores[metric.id]) &&
+        Number.isInteger(scores[metric.id]) &&
+        scores[metric.id] >= metric.min &&
+        scores[metric.id] <= metric.max
+      );
     const validFeedback = message.payload.feedback === undefined ||
       (typeof message.payload.feedback === 'string' && message.payload.feedback.length <= 2000);
     const hasCategoryAccess = account.role === `jurado_${project.categoryId}` ||
@@ -609,7 +654,11 @@ async function handleWsMessage(message: WSMessage, account: StoredAccount | unde
     const project = state.projects.find((item) => item.id === message.payload.projectId);
     if (!project || (project.categoryId !== 'primaria' && project.categoryId !== 'bachillerato')) return false;
     const metricKeys = Object.keys(message.payload.scores);
-    const total = Number((metricKeys.reduce((sum, key) => sum + message.payload.scores[key], 0) / metricKeys.length).toFixed(2));
+    const metrics = state.metrics[project.categoryId];
+    const total = Number(metrics.reduce(
+      (sum, metric) => sum + message.payload.scores[metric.id] * metric.weight,
+      0
+    ).toFixed(2));
     const evaluation = {
       jurorId: account._id,
       jurorName: account.name,
@@ -626,7 +675,7 @@ async function handleWsMessage(message: WSMessage, account: StoredAccount | unde
     await recordActivity(
       database,
       'score',
-      `${account.name} calificó a "${project.name}" (${project.code}) con ${total.toFixed(2)}/5.00`
+      `${account.name} calificó a "${project.name}" (${project.code}) con ${total.toFixed(2)}/100`
     );
   } else if (message.type === 'SUBMIT_LINE_ATTEMPT') {
     const project = state.projects.find((item) => item.id === message.payload.projectId);

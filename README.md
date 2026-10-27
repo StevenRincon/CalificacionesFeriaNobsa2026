@@ -34,5 +34,7 @@ WebSockets usa MongoDB Change Streams sobre `roboeval_state` para notificar camb
 
 En celular, la página inicial ofrece acceso directo a la evaluación o a podios/clasificación. El jurado puede buscar proyectos por nombre del proyecto o participante, abrir la rúbrica en un modal y volver a modificar sus propias calificaciones; cada jurado solo modifica su evaluación individual.
 
+La rúbrica de Automatización usa calificaciones enteras de 10 a 100 y calcula el total ponderado sobre 100: Innovación y creatividad (30%), Estética y presentación (20%), Impacto del proyecto al entorno (15%), Diseño y claridad del póster (10%) y Sustentación (25%).
+
 Para validar cambios: `npm run lint` y `npm run build`.
 # CalificacionesFeriaNobsa2026

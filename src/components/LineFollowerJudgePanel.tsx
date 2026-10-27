@@ -190,7 +190,6 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
       await onSubmitLineAttempt(selectedProject.id, attemptToSave);
       soundFx.playLapOrFinish();
       setSavedSuccessAttempt(attemptNum);
-      setTimeout(() => setSavedSuccessAttempt(null), 2500);
     } catch (error) {
       console.error('[RoboEval] Error guardando intento de Seguidores de Línea', {
         projectId: selectedProject.id,
@@ -415,7 +414,16 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
 
                 <div className="space-y-4">
                   {draftAttempts.map((att) => {
-                    const isSuccess = savedSuccessAttempt === att.attemptNumber;
+                    const isSaved =
+                      savedSuccessAttempt === att.attemptNumber ||
+                      Boolean(
+                        selectedProject?.attempts?.some(
+                          (attempt) =>
+                            attempt.attemptNumber === att.attemptNumber &&
+                            (attempt.timeSeconds > 0 || attempt.recordedAt)
+                        )
+                      );
+                    const isSaving = savingAttempt === att.attemptNumber;
 
                     return (
                       <div
@@ -522,18 +530,18 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
                             <button
                               type="button"
                               onClick={() => saveAttempt(att.attemptNumber)}
-                              disabled={savingAttempt === att.attemptNumber}
-                              className={`w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                                savingAttempt === att.attemptNumber
+                              disabled={isSaving || isSaved}
+                              className={`w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                                isSaving
                                   ? 'bg-slate-600 text-white'
-                                  : isSuccess
-                                  ? 'bg-emerald-600 text-white shadow-md'
-                                  : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-600/20 active:scale-95'
+                                  : isSaved
+                                  ? 'bg-emerald-600 text-white shadow-md cursor-not-allowed opacity-80'
+                                  : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-600/20 active:scale-95 cursor-pointer'
                               }`}
                             >
-                              {savingAttempt === att.attemptNumber ? (
+                              {isSaving ? (
                                 <span>Guardando…</span>
-                              ) : isSuccess ? (
+                              ) : isSaved ? (
                                 <>
                                   <CheckCircle2 className="w-3.5 h-3.5" />
                                   <span>¡Guardado!</span>

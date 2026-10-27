@@ -37,7 +37,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, o
         project.institution,
         project.categoryId === 'linea'
           ? project.bestTime ? `${project.bestTime}s` : 'Sin tiempo válido'
-          : project.averageScore ? `${project.averageScore}/5.0` : 'Sin calificar',
+          : project.averageScore ? `${project.averageScore}/100` : 'Sin calificar',
       ]),
     ];
     const csv = rows.map((row) => row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -163,7 +163,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, o
                       <td className="py-2.5 px-3 text-center font-mono">
                         {project.categoryId === 'linea'
                           ? project.bestTime ? <span className="text-cyan-300 font-bold">{formatTime(project.bestTime)}</span> : <span className="text-slate-500">Sin tiempo</span>
-                          : project.averageScore ? <span className="text-emerald-400 font-bold">{formatScore(project.averageScore)}/5.0</span> : <span className="text-slate-500">Pendiente</span>}
+                          : project.averageScore ? <span className="text-emerald-400 font-bold">{formatScore(project.averageScore)}/100</span> : <span className="text-slate-500">Pendiente</span>}
                       </td>
                     </tr>
                   );

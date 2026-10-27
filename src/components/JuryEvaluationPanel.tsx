@@ -57,7 +57,7 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
       setScores({ ...existingEvaluation.scores });
       setFeedback(existingEvaluation.feedback || '');
     } else {
-      setScores(Object.fromEntries(metrics.map((metric) => [metric.id, 4.0])));
+      setScores(Object.fromEntries(metrics.map((metric) => [metric.id, 70])));
       setFeedback('');
     }
     setSaveSuccess(false);
@@ -73,13 +73,22 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
   }, [selectedProjectId]);
 
   const currentTotal = metrics.reduce(
-    (total, metric) => total + (scores[metric.id] ?? 4) * metric.weight,
+    (total, metric) => total + (scores[metric.id] ?? 70) * metric.weight,
     0
   );
 
   const handleScoreChange = (metricId: string, value: number) => {
-    const clamped = Math.max(1, Math.min(5, Number(value.toFixed(1))));
+    const clamped = Math.max(10, Math.min(100, Math.round(value)));
     setScores((current) => ({ ...current, [metricId]: clamped }));
+  };
+
+  const handleNumericScoreChange = (metricId: string, value: string) => {
+    if (value === '') {
+      setScores((current) => ({ ...current, [metricId]: 10 }));
+      return;
+    }
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) setScores((current) => ({ ...current, [metricId]: parsed }));
   };
 
   const handleSave = (event: React.FormEvent) => {
@@ -126,7 +135,7 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
                 {evaluation ? (
                   <span className="inline-flex min-h-10 items-center gap-1.5 rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-300">
                     <CheckCircle2 className="w-4 h-4" />
-                    {evaluation.totalScore.toFixed(2)} / 5
+                    {evaluation.totalScore.toFixed(2)} / 100
                   </span>
                 ) : (
                   <span className="inline-flex min-h-10 items-center gap-1.5 rounded-sm border border-amber-500/30 bg-amber-500/10 px-3 text-xs font-semibold text-amber-200">
@@ -186,14 +195,14 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
               </div>
               <div className="mt-3 flex items-center justify-between rounded border border-cyan-500/40 bg-cyan-950/60 px-3 py-2 shadow-lg">
                 <span className="text-xs sm:text-sm font-semibold text-slate-200">Puntaje global</span>
-                <span className="text-xl sm:text-2xl font-black text-cyan-300">{currentTotal.toFixed(2)} / 5.00</span>
+                <span className="text-xl sm:text-2xl font-black text-cyan-300">{currentTotal.toFixed(2)} / 100</span>
               </div>
             </header>
 
             <form onSubmit={handleSave} className="space-y-5 p-4 sm:p-6">
               <div className="space-y-3">
                 {metrics.map((metric, index) => {
-                  const value = scores[metric.id] ?? 4;
+                  const value = scores[metric.id] ?? 70;
                   return (
                     <fieldset key={metric.id} className="rounded border border-cyan-500/20 bg-[#0d111a] p-4">
                       <div className="flex items-start justify-between gap-3">
@@ -206,7 +215,7 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
                           type="range"
                           min={metric.min}
                           max={metric.max}
-                          step={0.1}
+                          step={1}
                           value={value}
                           aria-label={`Puntaje ${metric.name}`}
                           onChange={(event) => handleScoreChange(metric.id, Number(event.target.value))}
@@ -216,9 +225,10 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
                           type="number"
                           min={metric.min}
                           max={metric.max}
-                          step={0.1}
+                          step={1}
                           value={value}
-                          onChange={(event) => handleScoreChange(metric.id, Number(event.target.value) || metric.min)}
+                          onChange={(event) => handleNumericScoreChange(metric.id, event.target.value)}
+                          onBlur={(event) => handleScoreChange(metric.id, Number(event.target.value) || metric.min)}
                           aria-label={`Puntaje numérico ${metric.name}`}
                           className="h-11 w-20 rounded border border-cyan-500/40 bg-[#05060a] px-2 text-center text-base font-bold text-cyan-200"
                         />

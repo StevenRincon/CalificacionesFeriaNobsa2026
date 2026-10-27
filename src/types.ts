@@ -12,18 +12,18 @@ export interface CategoryInfo {
 export interface MetricDefinition {
   id: string;
   name: string;
-  weight: number; // 0.25 (25%)
+  weight: number; // Weighted fraction of the final score
   description: string;
-  min: number; // 1.0
-  max: number; // 5.0
+  min: number;
+  max: number;
   guide: string[];
 }
 
 export interface ProjectScoreItem {
   jurorId: string;
   jurorName: string;
-  scores: Record<string, number>; // metricId -> score (1.0 to 5.0)
-  totalScore: number; // calculated 1.0 to 5.0
+  scores: Record<string, number>; // metricId -> score (10 to 100)
+  totalScore: number; // Weighted score from 10 to 100
   feedback?: string;
   updatedAt: string;
 }
@@ -48,9 +48,9 @@ export interface Project {
   members?: string[];
   standNumber?: string;
   imageUrl?: string;
-  // For rubric categories (Primaria & Bachillerato)
+  // For rubric categories
   scores?: Record<string, ProjectScoreItem>; // jurorId -> ProjectScoreItem
-  averageScore?: number; // 1.0 to 5.0
+  averageScore?: number; // 10 to 100
   evaluationsCount?: number;
   // For Line Follower category
   attempts?: LineAttempt[]; // up to 3 attempts

@@ -159,7 +159,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 border-b border-slate-800 pb-2 flex items-center justify-between">
                 <span>Evaluaciones de Jurados Oficiales</span>
                 <span className="text-emerald-400 font-mono font-bold">
-                  Promedio: {formatScore(project.averageScore)} / 5.0
+                  Promedio: {formatScore(project.averageScore)} / 100
                 </span>
               </h3>
 
@@ -181,19 +181,19 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                           <span className="text-base font-black font-mono text-emerald-400">
                             {scoreItem.totalScore.toFixed(2)}
                           </span>
-                          <span className="text-[10px] text-slate-400 block">/ 5.00</span>
+                          <span className="text-[10px] text-slate-400 block">/ 100</span>
                         </div>
                       </div>
 
-                      {/* 4 metrics breakdown */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-700/60">
+                      {/* Rubric metrics breakdown */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 border-t border-slate-700/60">
                         {metrics.map((m) => (
                           <div key={m.id} className="bg-slate-900/60 p-2 rounded-lg text-center">
-                            <span className="text-[10px] text-slate-400 truncate block">
-                              {m.name.slice(0, 15)}...
+                            <span title={m.name} className="text-[10px] text-slate-400 truncate block">
+                              {m.name} ({Math.round(m.weight * 100)}%)
                             </span>
                             <span className="text-xs font-mono font-bold text-white">
-                              {scoreItem.scores[m.id]?.toFixed(1) || '0.0'}
+                              {scoreItem.scores[m.id]?.toFixed(0) || '—'}
                             </span>
                           </div>
                         ))}

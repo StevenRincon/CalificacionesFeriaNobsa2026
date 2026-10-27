@@ -20,6 +20,7 @@ interface LeaderboardTableProps {
 export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
   categoryId,
   projects,
+  metrics,
   onSelectProject,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,7 +82,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
           <p className="text-xs text-slate-400 font-mono mt-0.5">
             {isLineCategory
               ? '// 3 intentos oficiales. Gana el menor tiempo con pista completada.'
-              : '// 4 métricas ponderadas al 25% c/u. Escala 1.0 a 5.0.'}
+              : '// 5 criterios ponderados. Escala de 10 a 100.'}
           </p>
         </div>
 
@@ -265,26 +266,19 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
             </tbody>
           </table>
         ) : (
-          // TABLE FOR PRIMARIA & BACHILLERATO (RUBRIC)
+          // TABLE FOR RUBRIC CATEGORIES
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-800/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                 <th className="py-3 px-4 w-12 text-center">Pos</th>
                 <th className="py-3 px-4">Proyecto & Equipo</th>
-                <th className="py-3 px-3 text-center">
-                  Innovación <span className="text-slate-500 font-normal">(25%)</span>
-                </th>
-                <th className="py-3 px-3 text-center">
-                  Técnica <span className="text-slate-500 font-normal">(25%)</span>
-                </th>
-                <th className="py-3 px-3 text-center">
-                  Sustentación <span className="text-slate-500 font-normal">(25%)</span>
-                </th>
-                <th className="py-3 px-3 text-center">
-                  Impacto <span className="text-slate-500 font-normal">(25%)</span>
-                </th>
+                {metrics.map((metric) => (
+                  <th key={metric.id} className="py-3 px-3 text-center min-w-32">
+                    {metric.name} <span className="whitespace-nowrap text-slate-500 font-normal">({Math.round(metric.weight * 100)}%)</span>
+                  </th>
+                ))}
                 <th className="py-3 px-4 text-center bg-blue-950/20 text-blue-300 font-bold">
-                  Nota Final (1-5)
+                  Nota Final (10-100)
                 </th>
                 <th className="py-3 px-4 text-center">Jurados</th>
                 <th className="py-3 px-4 text-right">Detalle</th>
@@ -300,11 +294,6 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
                   const sum = scoresList.reduce((acc, curr) => acc + (curr.scores[mId] || 0), 0);
                   return (sum / count).toFixed(2);
                 };
-
-                const avgM1 = getMetricAvg('m1_innovacion');
-                const avgM2 = getMetricAvg('m2_tecnica');
-                const avgM3 = getMetricAvg('m3_sustentacion');
-                const avgM4 = getMetricAvg('m4_impacto');
 
                 return (
                   <tr
@@ -335,41 +324,14 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
                       </div>
                     </td>
 
-                    {/* M1 */}
-                    <td className="py-3.5 px-3 text-center font-mono text-slate-300">
-                      {avgM1 ? (
-                        <span className="font-medium">{avgM1}</span>
-                      ) : (
-                        <span className="text-slate-600">-</span>
-                      )}
-                    </td>
-
-                    {/* M2 */}
-                    <td className="py-3.5 px-3 text-center font-mono text-slate-300">
-                      {avgM2 ? (
-                        <span className="font-medium">{avgM2}</span>
-                      ) : (
-                        <span className="text-slate-600">-</span>
-                      )}
-                    </td>
-
-                    {/* M3 */}
-                    <td className="py-3.5 px-3 text-center font-mono text-slate-300">
-                      {avgM3 ? (
-                        <span className="font-medium">{avgM3}</span>
-                      ) : (
-                        <span className="text-slate-600">-</span>
-                      )}
-                    </td>
-
-                    {/* M4 */}
-                    <td className="py-3.5 px-3 text-center font-mono text-slate-300">
-                      {avgM4 ? (
-                        <span className="font-medium">{avgM4}</span>
-                      ) : (
-                        <span className="text-slate-600">-</span>
-                      )}
-                    </td>
+                    {metrics.map((metric) => {
+                      const average = getMetricAvg(metric.id);
+                      return (
+                        <td key={metric.id} className="py-3.5 px-3 text-center font-mono text-slate-300">
+                          {average ? <span className="font-medium">{average}</span> : <span className="text-slate-600">-</span>}
+                        </td>
+                      );
+                    })}
 
                     {/* Total Final Score */}
                     <td className="py-3.5 px-4 text-center bg-blue-950/10">
@@ -378,7 +340,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
                           <span className="font-mono font-black text-base text-white">
                             {formatScore(proj.averageScore)}
                           </span>
-                          <span className="text-[9px] text-blue-400 font-medium">/ 5.00</span>
+                          <span className="text-[9px] text-blue-400 font-medium">/ 100</span>
                         </div>
                       ) : (
                         <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
