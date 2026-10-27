@@ -16,12 +16,8 @@ import {
   Sparkles, 
   Cpu, 
   Gauge, 
-  Tv, 
   FileCheck2, 
-  ShieldCheck, 
-  CheckCircle2, 
-  Wifi, 
-  Clock 
+  ShieldCheck
 } from 'lucide-react';
 
 const VISITOR_USER: UserAccount = {
@@ -45,7 +41,7 @@ export default function App() {
 
   const [currentUser, setCurrentUser] = useState<UserAccount>(VISITOR_USER);
   const [activeCategory, setActiveCategory] = useState<CategoryId>('bachillerato');
-  const [currentView, setCurrentView] = useState<'public' | 'jury' | 'admin'>('public');
+  const [currentView, setCurrentView] = useState<'home' | 'public' | 'jury' | 'admin'>('home');
 
   // Modals
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
@@ -127,7 +123,7 @@ export default function App() {
     });
   };
 
-  const handleChangeView = (view: 'public' | 'jury' | 'admin') => {
+  const handleChangeView = (view: 'home' | 'public' | 'jury' | 'admin') => {
     if (view === 'jury' && currentUser.role === 'viewer') {
       setIsLoginModalOpen(true);
       return;
@@ -144,7 +140,7 @@ export default function App() {
       const response = await fetch('/api/auth/logout', { method: 'POST' });
       if (!response.ok) throw new Error('No se pudo cerrar la sesión.');
       setCurrentUser(VISITOR_USER);
-      setCurrentView('public');
+      setCurrentView('home');
       reconnect();
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
@@ -161,23 +157,55 @@ export default function App() {
       <div className="fixed top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none -z-10" />
       <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[140px] pointer-events-none -z-10" />
 
-      {/* Navigation Header */}
-      <Header
-        state={state}
-        isConnected={isConnected}
-        currentUser={currentUser}
-        activeCategory={activeCategory}
-        onSelectCategory={handleSelectCategory}
-        currentView={currentView}
-        onChangeView={handleChangeView}
-        onOpenLogin={() => setIsLoginModalOpen(true)}
-        onLogout={handleLogout}
-        soundEnabled={soundEnabled}
-        onToggleSound={handleToggleSound}
-      />
+      {currentView !== 'home' && (
+        <Header
+          state={state}
+          isConnected={isConnected}
+          currentUser={currentUser}
+          activeCategory={activeCategory}
+          onSelectCategory={handleSelectCategory}
+          currentView={currentView}
+          onChangeView={handleChangeView}
+          onOpenLogin={() => setIsLoginModalOpen(true)}
+          onLogout={handleLogout}
+          soundEnabled={soundEnabled}
+          onToggleSound={handleToggleSound}
+        />
+      )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
+      <main className={`flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10 ${currentView === 'home' ? 'flex items-center justify-center' : ''}`}>
+        {currentView === 'home' && (
+          <section className="w-full max-w-xl mx-auto text-center space-y-8">
+            <div className="space-y-3">
+              <Trophy className="w-14 h-14 mx-auto text-cyan-400" />
+              <p className="text-xs uppercase tracking-[0.3em] text-cyan-300 font-mono">RoboEval Live</p>
+              <h1 className="text-3xl sm:text-4xl font-black text-white">Feria de Robótica</h1>
+              <p className="text-sm text-slate-400">Selecciona cómo deseas ingresar</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              <button
+                type="button"
+                onClick={() => currentUser.role === 'viewer' ? setIsLoginModalOpen(true) : setCurrentView(currentUser.role === 'admin' ? 'admin' : 'jury')}
+                className="cyber-button-primary min-h-16 w-full px-6 py-5 text-base font-bold flex items-center justify-center gap-3"
+              >
+                <FileCheck2 className="w-5 h-5" />
+                ACCEDER COMO JURADO
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentView('public')}
+                className="min-h-16 w-full px-6 py-5 rounded-sm border border-cyan-500/40 bg-[#11141d] text-cyan-200 hover:bg-slate-800 font-bold text-base flex items-center justify-center gap-3"
+              >
+                <Trophy className="w-5 h-5 text-amber-400" />
+                VER PODIOS Y CLASIFICACIÓN
+              </button>
+            </div>
+          </section>
+        )}
+
+        {currentView !== 'home' && (
+        <>
         
         {/* Category Description Banner */}
         <div className="mb-6 cyber-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-l-4 border-l-cyan-400">
@@ -293,10 +321,12 @@ export default function App() {
             />
           </div>
         )}
+        </>
+        )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-4 text-center text-xs text-slate-500">
+      {currentView !== 'home' && <footer className="border-t border-slate-900 bg-slate-950 py-4 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>RoboEval Live WS — Sistema de Evaluación y Cronometraje de Robótica</span>
           <div className="flex items-center gap-3">
@@ -313,7 +343,7 @@ export default function App() {
             </button>
           </div>
         </div>
-      </footer>
+      </footer>}
 
       {/* Login & Role Switcher Modal */}
       <LoginModal

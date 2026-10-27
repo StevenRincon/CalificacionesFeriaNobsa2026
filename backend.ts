@@ -362,6 +362,46 @@ function categoryFromRegistration(registration: RegistrationDocument): CategoryI
   return categoryFromFields(registration.category, registration.categoryName);
 }
 
+function registrationParticipants(registration: RegistrationDocument): string[] {
+  const names = new Set<string>();
+  const participantFields = [
+    'members',
+    'participants',
+    'participantNames',
+    'studentNames',
+    'teamMembers',
+    'students',
+    'integrantes',
+  ];
+  const nameFields = ['name', 'fullName', 'studentName', 'memberName', 'participantName', 'nombre'];
+
+  for (const field of participantFields) {
+    const value = registration[field];
+    if (!Array.isArray(value)) continue;
+    for (const participant of value) {
+      if (typeof participant === 'string' && participant.trim()) {
+        names.add(participant.trim());
+      } else if (participant && typeof participant === 'object') {
+        const record = participant as Record<string, unknown>;
+        const explicitName = nameFields
+          .map((key) => record[key])
+          .find((candidate): candidate is string => typeof candidate === 'string' && Boolean(candidate.trim()));
+        const firstName = typeof record.firstName === 'string' ? record.firstName.trim() : '';
+        const lastName = typeof record.lastName === 'string' ? record.lastName.trim() : '';
+        const name = explicitName?.trim() || [firstName, lastName].filter(Boolean).join(' ');
+        if (name) names.add(name);
+      }
+    }
+  }
+
+  for (const field of ['participantName', 'studentName', 'memberName']) {
+    const value = registration[field];
+    if (typeof value === 'string' && value.trim()) names.add(value.trim());
+  }
+
+  return [...names];
+}
+
 function mapRegistration(registration: RegistrationDocument): Project | undefined {
   const categoryId = categoryFromRegistration(registration);
   if (!categoryId) return undefined;
@@ -374,9 +414,7 @@ function mapRegistration(registration: RegistrationDocument): Project | undefine
     institution: asString(registration.institutionName, asString(registration.schoolName, asString(registration.institution, 'Institución educativa'))),
     categoryId,
     description: asString(registration.projectDescription, asString(registration.description, '')),
-    members: Array.isArray(registration.members)
-      ? registration.members.filter((member): member is string => typeof member === 'string')
-      : undefined,
+    members: registrationParticipants(registration),
     standNumber: typeof registration.standNumber === 'string' ? registration.standNumber : undefined,
     imageUrl: typeof registration.imageUrl === 'string' ? registration.imageUrl : undefined,
     scores: {},

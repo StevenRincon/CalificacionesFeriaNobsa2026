@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Play, 
   Pause, 
@@ -13,7 +13,8 @@ import {
   Zap,
   Sliders,
   ChevronRight,
-  AlertTriangle
+  AlertTriangle,
+  Search
 } from 'lucide-react';
 import { LineAttempt, Project, UserAccount } from '../types.ts';
 import { formatTime, computeLineStats } from '../utils/formatters.ts';
@@ -31,6 +32,19 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
   onSubmitLineAttempt,
 }) => {
   const lineProjects = projects.filter((p) => p.categoryId === 'linea');
+  const [searchTerm, setSearchTerm] = useState('');
+  const filteredLineProjects = useMemo(() => {
+    const query = searchTerm.trim().toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!query) return lineProjects;
+    return lineProjects.filter((project) => {
+      const searchable = [
+        project.name,
+        project.team,
+        ...(project.members || []),
+      ].join(' ').toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return searchable.includes(query);
+    });
+  }, [lineProjects, searchTerm]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(
     lineProjects[0]?.id || ''
   );
@@ -216,7 +230,7 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Left Column: Line Follower Teams List */}
-        <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col h-[780px]">
+        <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col h-[520px] lg:h-[780px]">
           <div className="pb-3 border-b border-slate-800">
             <h3 className="text-sm font-bold text-white flex items-center justify-between">
               <span>Robots en Competencia</span>
@@ -229,8 +243,20 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
             </p>
           </div>
 
+          <label className="relative block mt-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400" />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar proyecto o participante"
+              aria-label="Buscar robot por proyecto o participante"
+              className="w-full min-h-11 pl-10 pr-3 rounded bg-slate-950 border border-slate-700 text-base sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+            />
+          </label>
+
           <div className="flex-1 overflow-y-auto space-y-2 py-3 pr-1">
-            {lineProjects.map((proj) => {
+            {filteredLineProjects.map((proj) => {
               const isSelected = proj.id === selectedProjectId;
               const pStats = computeLineStats(proj.attempts);
 
@@ -245,16 +271,9 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
                   }`}
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-mono font-bold bg-slate-900/80 text-cyan-300 px-1.5 py-0.2 rounded border border-slate-700">
-                        {proj.code}
-                      </span>
-                      <span className="text-xs font-bold text-white truncate">
-                        {proj.name}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                      {proj.team}
+                    <p className="text-sm font-bold text-white leading-snug break-words">{proj.name}</p>
+                    <p className="text-xs text-slate-400 break-words mt-1">
+                      {proj.members?.length ? proj.members.join(', ') : proj.team}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5 text-[10px]">
                       <span className="text-slate-400 font-mono">
@@ -279,6 +298,11 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
                 </button>
               );
             })}
+              {filteredLineProjects.length === 0 && (
+                <p className="py-6 text-center text-sm text-slate-400">
+                  {searchTerm ? 'No hay proyectos o participantes que coincidan.' : 'No hay proyectos inscritos en esta categoría.'}
+                </p>
+              )}
           </div>
         </div>
 

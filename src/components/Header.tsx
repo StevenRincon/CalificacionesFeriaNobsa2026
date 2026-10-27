@@ -21,8 +21,8 @@ interface HeaderProps {
   currentUser: UserAccount;
   activeCategory: CategoryId;
   onSelectCategory: (cat: CategoryId) => void;
-  currentView: 'public' | 'jury' | 'admin';
-  onChangeView: (view: 'public' | 'jury' | 'admin') => void;
+  currentView: 'home' | 'public' | 'jury' | 'admin';
+  onChangeView: (view: 'home' | 'public' | 'jury' | 'admin') => void;
   onOpenLogin: () => void;
   onLogout: () => void;
   soundEnabled: boolean;
@@ -120,6 +120,12 @@ export const Header: React.FC<HeaderProps> = ({
             
             {/* View Switchers */}
             <div className="bg-[#11141d] p-1 rounded-sm border border-cyan-500/30 flex items-center gap-1">
+              <button
+                onClick={() => onChangeView('home')}
+                className="px-3 py-1.5 rounded-sm text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white hover:bg-slate-800"
+              >
+                Inicio
+              </button>
               <button
                 onClick={() => onChangeView('public')}
                 className={`px-3 py-1.5 rounded-sm text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${

@@ -32,5 +32,7 @@ Para diagnosticar una conexión publicada, abre `https://<tu-dominio>/api/health
 
 WebSockets usa MongoDB Change Streams sobre `roboeval_state` para notificar cambios entre instancias; requiere un clúster Atlas compatible con Change Streams. Las conexiones WebSocket de Vercel son beta y pueden cerrarse por duración máxima; el cliente se reconecta y recibe el estado actual al reconectar. Las inscripciones externas aparecen al recargar la app, mientras que las calificaciones se sincronizan en vivo.
 
+En celular, la página inicial ofrece acceso directo a la evaluación o a podios/clasificación. El jurado puede buscar proyectos por nombre del proyecto o participante, abrir la rúbrica en un modal y volver a modificar sus propias calificaciones; cada jurado solo modifica su evaluación individual.
+
 Para validar cambios: `npm run lint` y `npm run build`.
 # CalificacionesFeriaNobsa2026
