@@ -27,9 +27,9 @@ const CATEGORY_BY_CODE: Record<string, CategoryId> = {
 };
 
 const CATEGORY_BY_NAME: Record<string, CategoryId> = {
-  'seguidores de línea': 'linea',
-  'proyecto de automatización electrónica': 'bachillerato',
-  'proyectos educativos en robótica': 'primaria',
+  'seguidores de linea': 'linea',
+  'proyecto de automatizacion electronica': 'bachillerato',
+  'proyectos educativos en robotica': 'primaria',
 };
 
 interface RegistrationDocument {
@@ -351,7 +351,7 @@ function categoryFromRegistration(registration: RegistrationDocument): CategoryI
   const code = typeof registration.category === 'string' ? registration.category.trim().toLowerCase() : '';
   if (CATEGORY_BY_CODE[code]) return CATEGORY_BY_CODE[code];
   const name = typeof registration.categoryName === 'string'
-    ? registration.categoryName.trim().toLocaleLowerCase('es')
+    ? registration.categoryName.trim().toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     : '';
   return CATEGORY_BY_NAME[name];
 }
@@ -405,7 +405,7 @@ async function loadTournamentState(database: Db): Promise<TournamentState> {
   const collections = getCollections(database);
   const [registrations, metadata] = await Promise.all([
     collections.registrations
-      .find({ categoryName: { $in: Object.keys(CATEGORY_BY_NAME) } })
+      .find({})
       .sort({ code: 1 })
       .toArray(),
     collections.metadata.findOne({ _id: 'tournament' }),

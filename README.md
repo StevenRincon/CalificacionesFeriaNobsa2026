@@ -12,11 +12,12 @@ Las credenciales iniciales del administrador son `AlcaldiaNobsa` / `T1cN0b54`. P
 
 ## Estructura MongoDB
 
-- Los proyectos se leen de `registrations` usando `code`, `projectTitle`, `category` y `categoryName`. Se asignan así:
+- Los proyectos se leen de todos los documentos de `registrations` usando `code`, `projectTitle`, `category` y `categoryName`. La categoría se resuelve primero por `category` y, si falta o no coincide, por `categoryName` (ignorando tildes). Se asignan así:
   - `category: "seguidores"` / `categoryName: "Seguidores de línea"` → Seguidores de Línea.
   - `category: "automatizacion"` / `categoryName: "Proyecto de automatización electrónica"` → Bachillerato.
   - `category: "educativos"` / `categoryName: "Proyectos educativos en robótica"` → Primaria.
 - `registrations` es de solo lectura desde RoboEval. Las inscripciones se gestionan desde el sistema que ya las crea; se reflejan al volver a cargar la aplicación.
+- Cada jurado ve los proyectos de su categoría asignada; las inscripciones de las tres categorías se cargan desde `registrations`.
 - Evaluaciones, intentos, cuentas de jurado y sesiones se guardan por separado en `roboeval_evaluations`, `roboeval_accounts`, `roboeval_sessions` y `roboeval_state`. RoboEval no modifica los documentos de inscripción.
 - La cuenta inicial se inserta en `roboeval_accounts`; las contraseñas se guardan con hash scrypt. Las sesiones tienen vencimiento y el token se guarda con hash.
 
