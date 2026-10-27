@@ -72,6 +72,35 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedProjectId]);
 
+  useEffect(() => {
+    if (!selectedProjectId) return;
+
+    const scrollY = window.scrollY;
+    const { body, documentElement } = document;
+    const previousBodyStyles = {
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    const previousHtmlOverflow = documentElement.style.overflow;
+
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    documentElement.style.overflow = 'hidden';
+
+    return () => {
+      body.style.position = previousBodyStyles.position;
+      body.style.top = previousBodyStyles.top;
+      body.style.width = previousBodyStyles.width;
+      body.style.overflow = previousBodyStyles.overflow;
+      documentElement.style.overflow = previousHtmlOverflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [selectedProjectId]);
+
   const currentTotal = metrics.reduce(
     (total, metric) => total + (scores[metric.id] ?? 70) * metric.weight,
     0
@@ -162,7 +191,7 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
 
       {selectedProject && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
+          className="fixed inset-0 z-50 flex h-[100dvh] items-end justify-center overflow-hidden overscroll-none bg-black/80 p-0 touch-none sm:items-center sm:p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setSelectedProjectId(null);
           }}
@@ -171,7 +200,7 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="evaluation-title"
-            className="w-full max-w-3xl max-h-[95dvh] sm:max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-xl border border-cyan-500/40 bg-[#080b12] shadow-2xl"
+            className="w-full max-w-3xl max-h-[95dvh] sm:max-h-[90vh] touch-pan-y overscroll-contain overflow-y-auto rounded-t-2xl sm:rounded-xl border border-cyan-500/40 bg-[#080b12] shadow-2xl"
           >
             <header className="sticky top-0 z-10 border-b border-cyan-500/20 bg-[#080b12]/95 p-3 sm:p-4 backdrop-blur">
               <div className="flex items-start justify-between gap-3">
