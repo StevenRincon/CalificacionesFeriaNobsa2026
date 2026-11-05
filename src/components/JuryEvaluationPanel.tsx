@@ -14,7 +14,7 @@ interface JuryEvaluationPanelProps {
     jurorName: string,
     scores: Record<string, number>,
     feedback?: string
-  ) => void;
+  ) => Promise<void>;
 }
 
 function normalizeText(value: string) {
@@ -37,6 +37,8 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
   const [scores, setScores] = useState<Record<string, number>>({});
   const [feedback, setFeedback] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const categoryProjects = useMemo(() => {
     const query = normalizeText(searchTerm.trim());
@@ -64,8 +66,12 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
       setScores(Object.fromEntries(metrics.map((metric) => [metric.id, defaultScore(metric)])));
       setFeedback('');
     }
-    setSaveSuccess(false);
   }, [selectedProject, existingEvaluation, metrics]);
+
+  useEffect(() => {
+    setSaveSuccess(false);
+    setSaveError('');
+  }, [selectedProjectId]);
 
   useEffect(() => {
     if (!selectedProjectId) return;
@@ -129,13 +135,22 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
     if (Number.isFinite(parsed)) setScores((current) => ({ ...current, [metricId]: parsed }));
   };
 
-  const handleSave = (event: React.FormEvent) => {
+  const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!selectedProject) return;
-    onSubmitScore(selectedProject.id, currentUser.id, currentUser.name, scores, feedback);
-    soundFx.playLapOrFinish();
-    setSaveSuccess(true);
-    window.setTimeout(() => setSaveSuccess(false), 3000);
+    if (!selectedProject || isSaving) return;
+    setIsSaving(true);
+    setSaveError('');
+    setSaveSuccess(false);
+    try {
+      await onSubmitScore(selectedProject.id, currentUser.id, currentUser.name, scores, feedback);
+      soundFx.playLapOrFinish();
+      setSaveSuccess(true);
+      window.setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'No se pudo guardar la calificación.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -298,6 +313,7 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
 
               <div className="sticky bottom-0 flex flex-col-reverse gap-2 border-t border-cyan-500/20 bg-[#080b12] py-3 sm:flex-row sm:justify-end">
                 {saveSuccess && <p role="status" className="self-center text-sm text-emerald-300">Calificación guardada y sincronizada.</p>}
+                {saveError && <p role="alert" className="self-center text-sm text-rose-300">{saveError}</p>}
                 <button
                   type="button"
                   onClick={() => setSelectedProjectId(null)}
@@ -305,9 +321,9 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
                 >
                   Cerrar
                 </button>
-                <button type="submit" className="cyber-button-primary min-h-12 px-5 text-sm font-bold flex items-center justify-center gap-2">
+                <button disabled={isSaving} type="submit" className="cyber-button-primary min-h-12 px-5 text-sm font-bold flex items-center justify-center gap-2 disabled:cursor-wait disabled:opacity-60">
                   <Save className="h-4 w-4" />
-                  {existingEvaluation ? 'Guardar cambios' : 'Guardar evaluación'}
+                  {isSaving ? 'Guardando…' : existingEvaluation ? 'Guardar cambios' : 'Guardar evaluación'}
                 </button>
               </div>
             </form>

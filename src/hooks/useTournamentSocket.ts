@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { CategoryId, TournamentState, WSMessage, LineAttempt, Project } from '../types.ts';
 import { INITIAL_TOURNAMENT_STATE } from '../data/defaultData.ts';
+import { computeRubricStats } from '../utils/formatters.ts';
 
 export function useTournamentSocket() {
   const [state, setState] = useState<TournamentState>(() => ({
@@ -182,13 +183,34 @@ export function useTournamentSocket() {
   }, []);
 
   const submitScore = useCallback(
-    (projectId: string, jurorId: string, jurorName: string, scores: Record<string, number>, feedback?: string) => {
-      sendWsMessage({
-        type: 'SUBMIT_SCORE',
-        payload: { projectId, jurorId, jurorName, scores, feedback },
+    async (projectId: string, jurorId: string, jurorName: string, scores: Record<string, number>, feedback?: string) => {
+      const response = await fetch('/api/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, jurorId, jurorName, scores, feedback }),
       });
+      const result: { success?: boolean; state?: TournamentState; error?: string } = await response.json();
+      const savedEvaluation = result.state?.projects
+        .find((project) => project.id === projectId)
+        ?.scores?.[jurorId];
+      if (!response.ok || !result.success || !result.state || !savedEvaluation) {
+        throw new Error(result.error || `El servidor respondió ${response.status} y no confirmó el guardado de la calificación.`);
+      }
+
+      setState((current) => ({
+        ...current,
+        projects: current.projects.map((project) => {
+          if (project.id !== projectId) return project;
+          const projectScores = { ...project.scores, [jurorId]: savedEvaluation };
+          return {
+            ...project,
+            scores: projectScores,
+            ...computeRubricStats(projectScores),
+          };
+        }),
+      }));
     },
-    [sendWsMessage]
+    []
   );
 
   const submitLineAttempt = useCallback(async (projectId: string, attempt: LineAttempt) => {

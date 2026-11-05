@@ -324,9 +324,7 @@ export default function App() {
                 projects={state.projects}
                 metrics={activeMetrics}
                 currentUser={currentUser}
-                onSubmitScore={(projId, jurorId, jurorName, scores, feedback) => {
-                  submitScore(projId, jurorId, jurorName, scores, feedback);
-                }}
+                onSubmitScore={submitScore}
               />
             )}
           </div>
