@@ -10,7 +10,7 @@ import { LoginModal } from './components/LoginModal.tsx';
 import { ProjectDetailModal } from './components/ProjectDetailModal.tsx';
 import { PodiumAccessGate } from './components/PodiumAccessGate.tsx';
 import { CATEGORIES } from './data/defaultData.ts';
-import { CategoryId, Project, UserAccount } from './types.ts';
+import { canAccessCategory, CategoryId, Project, UserAccount } from './types.ts';
 import { soundFx } from './utils/audio.ts';
 import { 
   Trophy, 
@@ -102,11 +102,7 @@ export default function App() {
   const handleSelectCategory = (categoryId: CategoryId) => {
     const category = CATEGORIES.find((item) => item.id === categoryId);
     const categoryProjects = state.projects.filter((project) => project.categoryId === categoryId);
-    const isAllowed = !(
-      currentUser.assignedCategory &&
-      currentUser.assignedCategory !== 'all' &&
-      currentUser.assignedCategory !== categoryId
-    );
+    const isAllowed = canAccessCategory(currentUser, categoryId);
     console.info('[RoboEval] Selección de categoría', {
       categoryId,
       categoryName: category?.name,

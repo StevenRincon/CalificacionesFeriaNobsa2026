@@ -1,5 +1,18 @@
 export type CategoryId = 'primaria' | 'bachillerato' | 'linea';
 
+export function canAccessCategory(
+  user: Pick<UserAccount, 'role' | 'assignedCategory'>,
+  categoryId: CategoryId
+): boolean {
+  if (user.role === 'viewer' || user.role === 'admin') return true;
+  if (user.role === 'cronometro_linea') return categoryId === 'linea';
+  if (user.role === 'jurado_primaria' || user.role === 'jurado_bachillerato') {
+    return categoryId === 'primaria' || categoryId === 'bachillerato';
+  }
+  if (!user.assignedCategory || user.assignedCategory === 'all') return false;
+  return user.assignedCategory === categoryId;
+}
+
 export interface CategoryInfo {
   id: CategoryId;
   name: string;

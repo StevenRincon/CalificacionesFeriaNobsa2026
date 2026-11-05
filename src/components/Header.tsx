@@ -11,7 +11,7 @@ import {
   Volume2, 
   VolumeX 
 } from 'lucide-react';
-import { CategoryId, TournamentState, UserAccount } from '../types.ts';
+import { canAccessCategory, CategoryId, TournamentState, UserAccount } from '../types.ts';
 import { CATEGORIES } from '../data/defaultData.ts';
 import { soundFx } from '../utils/audio.ts';
 
@@ -218,10 +218,7 @@ export const Header: React.FC<HeaderProps> = ({
           {CATEGORIES.map((cat) => {
             const count = getCategoryCount(cat.id);
             const isSelected = activeCategory === cat.id;
-            const isAssignedElsewhere =
-              currentUser.assignedCategory &&
-              currentUser.assignedCategory !== 'all' &&
-              currentUser.assignedCategory !== cat.id;
+            const isAssignedElsewhere = !canAccessCategory(currentUser, cat.id);
             return (
               <button
                 key={cat.id}

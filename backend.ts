@@ -289,7 +289,7 @@ function publicAccount(account: StoredAccount): UserAccount {
     return {
       ...safeAccount,
       role: 'jurado_bachillerato',
-      assignedCategory: 'all',
+      assignedCategory: 'bachillerato',
       badge: 'Jurado de Automatización — Primaria y Bachillerato',
       id: _id,
     };
