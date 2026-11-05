@@ -82,6 +82,8 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
           <p className="text-xs text-slate-400 font-mono mt-0.5">
             {isLineCategory
               ? '// 3 intentos oficiales. Gana el menor tiempo con pista completada.'
+              : categoryId === 'primaria'
+              ? '// 4 criterios ponderados. Escala de 1 a 5.'
               : '// 5 criterios ponderados. Escala de 10 a 100.'}
           </p>
         </div>
@@ -278,7 +280,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
                   </th>
                 ))}
                 <th className="py-3 px-4 text-center bg-blue-950/20 text-blue-300 font-bold">
-                  Nota Final (10-100)
+                  Nota Final ({categoryId === 'primaria' ? '1-5' : '10-100'})
                 </th>
                 <th className="py-3 px-4 text-center">Jurados</th>
                 <th className="py-3 px-4 text-right">Detalle</th>
@@ -340,7 +342,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
                           <span className="font-mono font-black text-base text-white">
                             {formatScore(proj.averageScore)}
                           </span>
-                          <span className="text-[9px] text-blue-400 font-medium">/ 100</span>
+                          <span className="text-[9px] text-blue-400 font-medium">/ {categoryId === 'primaria' ? 5 : 100}</span>
                         </div>
                       ) : (
                         <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">

@@ -23,10 +23,17 @@ const scrypt = promisify(scryptCallback);
 const CATEGORY_VALUES: Record<string, CategoryId> = {
   seguidores: 'linea',
   automatizacion: 'bachillerato',
-  educativos: 'bachillerato',
+  educativos: 'primaria',
+  primaria: 'primaria',
+  bachillerato: 'bachillerato',
   'seguidores de linea': 'linea',
+  'automatizacion electronica': 'bachillerato',
   'proyecto de automatizacion electronica': 'bachillerato',
-  'proyectos educativos en robotica': 'bachillerato',
+  'automatizacion electronica bachillerato': 'bachillerato',
+  'robotica bachillerato': 'bachillerato',
+  'proyectos educativos en robotica': 'primaria',
+  'robotica primaria': 'primaria',
+  'proyectos de robotica para primaria': 'primaria',
 };
 
 interface RegistrationDocument {
@@ -102,6 +109,7 @@ const globalMongo = globalThis as typeof globalThis & {
 };
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const podiumAccessAttempts = new Map<string, { count: number; resetAt: number }>();
 let wss: WebSocketServer;
 
 function logError(context: string, error: unknown) {
@@ -277,8 +285,14 @@ function hashToken(token: string) {
 
 function publicAccount(account: StoredAccount): UserAccount {
   const { _id, usernameKey: _usernameKey, passwordSalt: _salt, passwordHash: _hash, ...safeAccount } = account;
-  if (account.role === 'jurado_primaria') {
-    return { ...safeAccount, role: 'jurado_bachillerato', assignedCategory: 'bachillerato', id: _id };
+  if (account.role === 'jurado_primaria' || account.role === 'jurado_bachillerato') {
+    return {
+      ...safeAccount,
+      role: 'jurado_bachillerato',
+      assignedCategory: 'all',
+      badge: 'Jurado de Automatización — Primaria y Bachillerato',
+      id: _id,
+    };
   }
   return { ...safeAccount, id: _id };
 }
@@ -472,7 +486,7 @@ async function loadProjects(database: Db): Promise<Project[]> {
       project.completedRunsCount = stats.completedRunsCount;
       project.hasCompletedTrack = stats.hasCompletedTrack;
     } else {
-      project.scores = normalizeStoredRubricScores(evaluation.scores || {});
+      project.scores = normalizeStoredRubricScores(evaluation.scores || {}, project.categoryId);
       const stats = computeRubricStats(project.scores);
       project.averageScore = stats.averageScore;
       project.evaluationsCount = stats.evaluationsCount;
@@ -482,8 +496,41 @@ async function loadProjects(database: Db): Promise<Project[]> {
   return projects;
 }
 
-function normalizeStoredRubricScores(scores: Project['scores']): Project['scores'] {
+function normalizeStoredRubricScores(
+  scores: Project['scores'],
+  categoryId: 'primaria' | 'bachillerato'
+): Project['scores'] {
   if (!scores) return {};
+  if (categoryId === 'primaria') {
+    return Object.fromEntries(Object.entries(scores).map(([jurorId, evaluation]) => {
+      const oldScores = evaluation.scores;
+      const hasPrimaryRubric = ['m1_innovacion', 'm2_tecnica', 'm3_sustentacion', 'm4_impacto']
+        .every((metricId) => Number.isFinite(oldScores[metricId]) && oldScores[metricId] <= 5);
+      if (hasPrimaryRubric) return [jurorId, evaluation];
+
+      const scoreToFivePointScale = (value: number | undefined) =>
+        value === undefined ? 3.5 : Math.max(1, Math.min(5, Math.round((value / 20) * 10) / 10));
+      const newScores = {
+        m1_innovacion: scoreToFivePointScale(oldScores.m1_innovacion),
+        m2_tecnica: 3.5,
+        m3_sustentacion: scoreToFivePointScale(oldScores.m5_sustentacion),
+        m4_impacto: scoreToFivePointScale(oldScores.m3_impacto),
+      };
+      const totalScore = Number(Object.values(newScores)
+        .reduce((total, score) => total + score * 0.25, 0)
+        .toFixed(2));
+      const migrationNote = 'Evaluación migrada a la rúbrica de primaria; el criterio técnico quedó en 3.5/5 porque la rúbrica anterior no tenía un criterio equivalente.';
+      return [jurorId, {
+        ...evaluation,
+        scores: newScores,
+        totalScore,
+        feedback: evaluation.feedback
+          ? `${evaluation.feedback}\n\n${migrationNote}`
+          : migrationNote,
+      }];
+    }));
+  }
+
   const metricWeights: Record<string, number> = {
     m1_innovacion: 0.30,
     m2_estetica: 0.20,
@@ -533,9 +580,7 @@ async function loadTournamentState(database: Db): Promise<TournamentState> {
     title: metadata?.title || defaults.title,
     subtitle: metadata?.subtitle || defaults.subtitle,
     status: metadata?.status || defaults.status,
-    activeCategory: metadata?.activeCategory === 'primaria'
-      ? 'bachillerato'
-      : metadata?.activeCategory || defaults.activeCategory,
+    activeCategory: metadata?.activeCategory || defaults.activeCategory,
     projects,
     metrics: defaults.metrics,
     lastUpdated: metadata?.lastUpdated || new Date(0).toISOString(),
@@ -568,21 +613,26 @@ function canWrite(account: StoredAccount, message: WSMessage, state: TournamentS
     if (!project || (project.categoryId !== 'primaria' && project.categoryId !== 'bachillerato')) return false;
     const scores = message.payload.scores;
     const metrics = state.metrics[project.categoryId];
+    const isValidScore = (value: number, min: number, max: number) =>
+      Number.isFinite(value) &&
+      value >= min &&
+      value <= max &&
+      (project.categoryId === 'primaria'
+        ? Math.abs(value * 10 - Math.round(value * 10)) < 1e-8
+        : Number.isInteger(value));
     const validScores =
       scores !== null &&
       typeof scores === 'object' &&
       !Array.isArray(scores) &&
       Object.keys(scores).length === metrics.length &&
       metrics.every((metric) =>
-        Number.isFinite(scores[metric.id]) &&
-        Number.isInteger(scores[metric.id]) &&
-        scores[metric.id] >= metric.min &&
-        scores[metric.id] <= metric.max
+        isValidScore(scores[metric.id], metric.min, metric.max)
       );
     const validFeedback = message.payload.feedback === undefined ||
       (typeof message.payload.feedback === 'string' && message.payload.feedback.length <= 2000);
-    const hasCategoryAccess = account.role === `jurado_${project.categoryId}` ||
-      (project.categoryId === 'bachillerato' && account.role === 'jurado_primaria');
+    const hasCategoryAccess =
+      (project.categoryId === 'primaria' || project.categoryId === 'bachillerato') &&
+      (account.role === 'jurado_primaria' || account.role === 'jurado_bachillerato');
     return hasCategoryAccess && validScores && validFeedback;
   }
   if (message.type === 'SUBMIT_LINE_ATTEMPT') {
@@ -675,7 +725,7 @@ async function handleWsMessage(message: WSMessage, account: StoredAccount | unde
     await recordActivity(
       database,
       'score',
-      `${account.name} calificó a "${project.name}" (${project.code}) con ${total.toFixed(2)}/100`
+      `${account.name} calificó a "${project.name}" (${project.code}) con ${total.toFixed(2)}/${project.categoryId === 'primaria' ? 5 : 100}`
     );
   } else if (message.type === 'SUBMIT_LINE_ATTEMPT') {
     const project = state.projects.find((item) => item.id === message.payload.projectId);
@@ -880,6 +930,7 @@ app.get('/api/projects', async (req: Request, res: Response, next: NextFunction)
       projects,
       count: projects.length,
       categories: {
+        primaria: allProjects.filter((project) => project.categoryId === 'primaria').length,
         automatizacion: allProjects.filter((project) => project.categoryId === 'bachillerato').length,
         seguidores: allProjects.filter((project) => project.categoryId === 'linea').length,
       },
@@ -993,12 +1044,12 @@ app.post('/api/admin/accounts', requireAccount, requireAdmin, async (req: Authen
       res.status(400).json({ error: 'Datos inválidos: usuario (3-32 caracteres), nombre, contraseña (mínimo 8) y rol requerido.' });
       return;
     }
-    const categoryByRole: Record<string, CategoryId> = {
-      jurado_bachillerato: 'bachillerato',
+    const categoryByRole: Record<string, CategoryId | 'all'> = {
+      jurado_bachillerato: 'all',
       cronometro_linea: 'linea',
     };
     const badgeByRole: Record<string, string> = {
-      jurado_bachillerato: 'Jurado de Automatización',
+      jurado_bachillerato: 'Jurado de Automatización — Primaria y Bachillerato',
       cronometro_linea: 'Juez Oficial de Cronometraje',
     };
     const account = await createStoredAccount({
@@ -1021,6 +1072,33 @@ app.post('/api/admin/accounts', requireAccount, requireAdmin, async (req: Authen
   } catch (error) {
     next(error);
   }
+});
+
+app.post('/api/podium-access', (req: Request, res: Response) => {
+  const ip = req.ip || 'unknown';
+  const attempts = podiumAccessAttempts.get(ip);
+  if (attempts && attempts.resetAt > Date.now() && attempts.count >= 10) {
+    res.status(429).json({ error: 'Demasiados intentos. Espera 15 minutos e inténtalo de nuevo.' });
+    return;
+  }
+
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const suppliedHash = createHash('sha256').update(password).digest();
+  const expectedHash = createHash('sha256')
+    .update(process.env.PODIUM_ACCESS_PASSWORD || 'T1cN0b54')
+    .digest();
+  if (!timingSafeEqual(suppliedHash, expectedHash)) {
+    const current = attempts?.resetAt && attempts.resetAt > Date.now()
+      ? attempts
+      : { count: 0, resetAt: Date.now() + 15 * 60 * 1000 };
+    current.count += 1;
+    podiumAccessAttempts.set(ip, current);
+    res.status(401).json({ error: 'La clave ingresada no es correcta.' });
+    return;
+  }
+
+  podiumAccessAttempts.delete(ip);
+  res.json({ success: true });
 });
 
 function requireRole(roles: UserAccount['role'][]) {

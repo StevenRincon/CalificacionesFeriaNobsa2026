@@ -14,11 +14,12 @@ Las credenciales iniciales del administrador son `AlcaldiaNobsa` / `T1cN0b54`. P
 
 - Los proyectos se leen de todos los documentos de `registrations` usando `code`, `projectTitle`, `category` y `categoryName`. La categoría se resuelve primero por `category` y, si falta o no coincide, por `categoryName` (ignorando tildes). Se asignan así:
   - `category: "seguidores"` / `categoryName: "Seguidores de línea"` → Seguidores de Línea.
-  - `category: "automatizacion"` / `categoryName: "Proyecto de automatización electrónica"` → Automatización.
-  - `category: "educativos"` / `categoryName: "Proyectos educativos en robótica"` → Automatización.
+  - `category: "automatizacion"` / `categoryName: "Proyecto de automatización electrónica"` → Automatización de Bachillerato.
+  - `category: "educativos"` / `categoryName: "Proyectos educativos en robótica"` → Primaria / Educativos.
 - `registrations` es de solo lectura desde RoboEval. Las inscripciones se gestionan desde el sistema que ya las crea; se reflejan al volver a cargar la aplicación.
-- Los accesos nuevos se crean para Automatización o Seguidores de Línea. Ambos tipos de inscripciones indicados arriba se muestran en la categoría Automatización y comparten el mismo panel de evaluación.
-- La ruta `GET /api/projects` consulta directamente `registrations` y devuelve todos los proyectos con su categoría y calificaciones. Se puede filtrar con `?category=bachillerato` o `?category=linea`; al seleccionar una categoría desde la interfaz, el navegador solicita esa categoría y registra en consola el estado HTTP y la cantidad recibida. El panel de administración permite consultar todas las categorías con el botón de actualización.
+- Los accesos nuevos se crean para Automatización (Primaria y Bachillerato) o Seguidores de Línea. Los mismos jurados de Automatización pueden evaluar ambas categorías; las cuentas existentes de jurado de Primaria se conservan como cuentas compartidas.
+- Los visitantes deben ingresar la clave del podio para ver Primaria / Educativos o Automatización / Bachillerato. La verificación se hace en el servidor con `PODIUM_ACCESS_PASSWORD` (por defecto, `T1cN0b54`); los usuarios con sesión iniciada no necesitan esa clave.
+- La ruta `GET /api/projects` consulta directamente `registrations` y devuelve todos los proyectos con su categoría y calificaciones. Se puede filtrar con `?category=primaria`, `?category=bachillerato` o `?category=linea`; el panel de administración permite consultar todas las categorías con el botón de actualización.
 - Evaluaciones, intentos, cuentas de jurado y sesiones se guardan por separado en `roboeval_evaluations`, `roboeval_accounts`, `roboeval_sessions` y `roboeval_state`. RoboEval no modifica los documentos de inscripción.
 - La cuenta inicial se inserta en `roboeval_accounts`; las contraseñas se guardan con hash scrypt. Las sesiones tienen vencimiento y el token se guarda con hash.
 
@@ -34,7 +35,7 @@ WebSockets usa MongoDB Change Streams sobre `roboeval_state` para notificar camb
 
 En celular, la página inicial ofrece acceso directo a la evaluación o a podios/clasificación. El jurado puede buscar proyectos por nombre del proyecto o participante, abrir la rúbrica en un modal y volver a modificar sus propias calificaciones; cada jurado solo modifica su evaluación individual.
 
-La rúbrica de Automatización usa calificaciones enteras de 10 a 100 y calcula el total ponderado sobre 100: Innovación y creatividad (30%), Estética y presentación (20%), Impacto del proyecto al entorno (15%), Diseño y claridad del póster (10%) y Sustentación (25%).
+Primaria / Educativos usa cuatro criterios con notas de 1.0 a 5.0 en incrementos de 0.1 (25% cada uno): Innovación y originalidad, Diseño técnico y funcionalidad, Sustentación y dominio temático, e Impacto, acabado y viabilidad. Automatización / Bachillerato conserva cinco criterios con calificaciones enteras de 10 a 100: Innovación y creatividad (30%), Estética y presentación (20%), Impacto del proyecto al entorno (15%), Diseño y claridad del póster (10%) y Sustentación (25%). Las evaluaciones antiguas de proyectos educativos calificadas con la rúbrica de 100 puntos se convierten al formato de Primaria al consultarlas; el criterio técnico sin equivalente anterior se muestra como 3.5/5 y queda indicado en las observaciones.
 
 Para validar cambios: `npm run lint` y `npm run build`.
 # CalificacionesFeriaNobsa2026

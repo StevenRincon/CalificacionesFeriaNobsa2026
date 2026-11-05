@@ -22,8 +22,8 @@ export interface MetricDefinition {
 export interface ProjectScoreItem {
   jurorId: string;
   jurorName: string;
-  scores: Record<string, number>; // metricId -> score (10 to 100)
-  totalScore: number; // Weighted score from 10 to 100
+  scores: Record<string, number>; // metricId -> score according to the category rubric
+  totalScore: number; // Weighted score according to the category rubric
   feedback?: string;
   updatedAt: string;
 }

@@ -8,7 +8,8 @@ import { LineFollowerJudgePanel } from './components/LineFollowerJudgePanel.tsx'
 import { AdminPanel } from './components/AdminPanel.tsx';
 import { LoginModal } from './components/LoginModal.tsx';
 import { ProjectDetailModal } from './components/ProjectDetailModal.tsx';
-import { CATEGORIES, DEFAULT_METRICS } from './data/defaultData.ts';
+import { PodiumAccessGate } from './components/PodiumAccessGate.tsx';
+import { CATEGORIES } from './data/defaultData.ts';
 import { CategoryId, Project, UserAccount } from './types.ts';
 import { soundFx } from './utils/audio.ts';
 import { 
@@ -40,6 +41,8 @@ export default function App() {
   } = useTournamentSocket();
 
   const [currentUser, setCurrentUser] = useState<UserAccount>(VISITOR_USER);
+  const [isAuthResolved, setIsAuthResolved] = useState(false);
+  const [hasPodiumAccess, setHasPodiumAccess] = useState(false);
   const [activeCategory, setActiveCategory] = useState<CategoryId>('bachillerato');
   const [currentView, setCurrentView] = useState<'home' | 'public' | 'jury' | 'admin'>('home');
 
@@ -67,7 +70,10 @@ export default function App() {
           console.error('[RoboEval] No se pudo cargar la lista completa de proyectos al restaurar la sesión', error);
         });
       })
-      .catch((error: unknown) => console.error('No se pudo restaurar la sesión:', error));
+      .catch((error: unknown) => console.error('No se pudo restaurar la sesión:', error))
+      .finally(() => {
+        if (active) setIsAuthResolved(true);
+      });
     return () => {
       active = false;
     };
@@ -85,8 +91,8 @@ export default function App() {
     void refreshProjects().catch((error: unknown) => {
       console.error('[RoboEval] No se pudo cargar la lista completa de proyectos después del inicio de sesión', error);
     });
-    if (user.assignedCategory && user.assignedCategory !== 'all') {
-      setActiveCategory(user.assignedCategory);
+    if (user.role === 'jurado_primaria' || user.role === 'jurado_bachillerato' || user.role === 'cronometro_linea') {
+      setActiveCategory(user.role === 'cronometro_linea' ? 'linea' : 'bachillerato');
       setCurrentView('jury');
     } else {
       setCurrentView(user.role === 'admin' ? 'admin' : 'public');
@@ -140,6 +146,7 @@ export default function App() {
       const response = await fetch('/api/auth/logout', { method: 'POST' });
       if (!response.ok) throw new Error('No se pudo cerrar la sesión.');
       setCurrentUser(VISITOR_USER);
+      setHasPodiumAccess(false);
       setCurrentView('home');
       reconnect();
     } catch (error) {
@@ -148,10 +155,18 @@ export default function App() {
   };
 
   const activeCategoryInfo = CATEGORIES.find((c) => c.id === activeCategory) || CATEGORIES[0];
-  const activeMetrics = activeCategory === 'linea' ? [] : DEFAULT_METRICS;
+  const activeMetrics = activeCategory === 'linea' ? [] : state.metrics[activeCategory];
+  const isProtectedPodiumCategory = activeCategory === 'primaria' || activeCategory === 'bachillerato';
+  const isCheckingAuthentication = isProtectedPodiumCategory &&
+    currentUser.role === 'viewer' &&
+    !isAuthResolved;
+  const requiresPodiumPassword = isProtectedPodiumCategory &&
+    currentUser.role === 'viewer' &&
+    isAuthResolved &&
+    !hasPodiumAccess;
 
   return (
-    <div className="min-h-screen bg-[#05060a] bg-grid-pattern text-slate-100 flex flex-col font-tech selection:bg-cyan-500 selection:text-slate-950 relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#05060a] bg-grid-pattern text-slate-100 flex flex-col font-tech selection:bg-cyan-500 selection:text-slate-950 relative overflow-x-clip">
       {/* Ambient Cyber Grid & Glow Orbs */}
       <div className="fixed inset-0 pointer-events-none bg-dot-matrix opacity-20 z-0" />
       <div className="fixed top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none -z-10" />
@@ -194,7 +209,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={() => setCurrentView('public')}
+                onClick={() => handleChangeView('public')}
                 className="min-h-16 w-full px-6 py-5 rounded-sm border border-cyan-500/40 bg-[#11141d] text-cyan-200 hover:bg-slate-800 font-bold text-base flex items-center justify-center gap-3"
               >
                 <Trophy className="w-5 h-5 text-amber-400" />
@@ -248,7 +263,7 @@ export default function App() {
               </button>
             ) : (
               <button
-                onClick={() => setCurrentView('public')}
+                onClick={() => handleChangeView('public')}
                 className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400 text-xs font-bold uppercase tracking-wider rounded-sm flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <Trophy className="w-3.5 h-3.5 text-amber-400" />
@@ -261,6 +276,17 @@ export default function App() {
         {/* VIEW 1: PANTALLA PÚBLICA DE RESULTADOS & PODIO */}
         {currentView === 'public' && (
           <div className="space-y-6 animate-fade-in">
+            {isCheckingAuthentication ? (
+              <div role="status" className="cyber-card p-8 text-center text-sm text-slate-300">
+                Verificando sesión…
+              </div>
+            ) : requiresPodiumPassword ? (
+              <PodiumAccessGate
+                categoryName={activeCategoryInfo.name}
+                onUnlock={() => setHasPodiumAccess(true)}
+              />
+            ) : (
+              <>
             {/* Podium component for active category */}
             <PodiumView
               categoryId={activeCategory}
@@ -275,6 +301,8 @@ export default function App() {
               metrics={activeMetrics}
               onSelectProject={(p) => setSelectedDetailProject(p)}
             />
+              </>
+            )}
           </div>
         )}
 

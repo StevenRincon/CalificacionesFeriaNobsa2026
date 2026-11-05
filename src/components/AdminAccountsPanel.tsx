@@ -3,7 +3,7 @@ import { UserPlus, Users } from 'lucide-react';
 import { UserAccount } from '../types.ts';
 
 const roleLabels = {
-  jurado_bachillerato: 'Jurado — Automatización',
+  jurado_bachillerato: 'Jurado — Automatización (Primaria y Bachillerato)',
   cronometro_linea: 'Jurado — Seguidores de línea',
 } as const;
 
@@ -101,7 +101,7 @@ export const AdminAccountsPanel: React.FC = () => {
               <tr key={account.id}>
                 <td className="py-2 pr-3 text-white">{account.name}</td>
                 <td className="py-2 pr-3 font-mono text-cyan-300">{account.username}</td>
-                <td className="py-2 text-slate-300">{roleLabels[account.role as JuryRole] || (account.role === 'jurado_primaria' ? roleLabels.jurado_bachillerato : account.badge)}</td>
+                <td className="py-2 text-slate-300">{roleLabels[account.role as JuryRole] || account.badge}</td>
               </tr>
             ))}
             {accounts.length === 0 && <tr><td colSpan={3} className="py-3 text-slate-500">Aún no hay cuentas de jurado.</td></tr>}

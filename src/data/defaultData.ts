@@ -2,10 +2,18 @@ import { CategoryInfo, MetricDefinition, Project, TournamentState } from '../typ
 
 export const CATEGORIES: CategoryInfo[] = [
   {
+    id: 'primaria',
+    name: 'Proyectos educativos en robótica — Primaria',
+    shortName: 'Primaria / Educativos',
+    description: 'Proyectos educativos en robótica de primaria, evaluados con una rúbrica de cuatro criterios sobre 5.',
+    icon: 'Sparkles',
+    type: 'rubric',
+  },
+  {
     id: 'bachillerato',
-    name: 'Automatización y proyectos educativos en robótica',
-    shortName: 'Automatización',
-    description: 'Proyectos inscritos como automatización electrónica o proyectos educativos en robótica, evaluados por el jurado de Automatización.',
+    name: 'Automatización electrónica — Bachillerato',
+    shortName: 'Automatización / Bachillerato',
+    description: 'Proyectos de automatización electrónica de bachillerato, evaluados con una rúbrica de cinco criterios sobre 100.',
     icon: 'Cpu',
     type: 'rubric',
   },
@@ -64,6 +72,65 @@ export const DEFAULT_METRICS: MetricDefinition[] = [
     min: 10,
     max: 100,
     guide: [],
+  },
+];
+
+export const PRIMARY_METRICS: MetricDefinition[] = [
+  {
+    id: 'm1_innovacion',
+    name: 'Innovación y originalidad',
+    weight: 0.25,
+    description: 'Novedad de la solución, creatividad en el uso de materiales y propuesta de valor.',
+    min: 1,
+    max: 5,
+    guide: [
+      '1.0–2.0: Réplica directa sin variaciones o aporte original.',
+      '2.1–3.5: Modificación moderada de proyectos existentes.',
+      '3.6–4.5: Solución creativa y novedosa con enfoque propio.',
+      '4.6–5.0: Innovación sobresaliente con alto ingenio y originalidad.',
+    ],
+  },
+  {
+    id: 'm2_tecnica',
+    name: 'Diseño técnico y funcionalidad',
+    weight: 0.25,
+    description: 'Funcionamiento, integración de componentes, conexiones seguras y calidad de construcción.',
+    min: 1,
+    max: 5,
+    guide: [
+      '1.0–2.0: No funciona o presenta fallas estructurales graves.',
+      '2.1–3.5: Funciona parcialmente o presenta intermitencias.',
+      '3.6–4.5: Funcionamiento estable e integración adecuada.',
+      '4.6–5.0: Desempeño sobresaliente y excelente construcción.',
+    ],
+  },
+  {
+    id: 'm3_sustentacion',
+    name: 'Sustentación y dominio temático',
+    weight: 0.25,
+    description: 'Capacidad de explicar el funcionamiento, responder preguntas y participar en equipo.',
+    min: 1,
+    max: 5,
+    guide: [
+      '1.0–2.0: Dificultad para explicar el proyecto o participar.',
+      '2.1–3.5: Explicación básica con dudas en conceptos clave.',
+      '3.6–4.5: Exposición clara y participación equilibrada.',
+      '4.6–5.0: Dominio excepcional y respuestas contundentes.',
+    ],
+  },
+  {
+    id: 'm4_impacto',
+    name: 'Impacto, acabado y viabilidad',
+    weight: 0.25,
+    description: 'Presentación, seguridad y aplicación del proyecto en su comunidad.',
+    min: 1,
+    max: 5,
+    guide: [
+      '1.0–2.0: Presentación descuidada y sin aplicación clara.',
+      '2.1–3.5: Acabado elemental con potencial de mejora.',
+      '3.6–4.5: Buena presentación y aplicación práctica evidente.',
+      '4.6–5.0: Prototipo bien terminado y de alto impacto.',
+    ],
   },
 ];
 
@@ -432,7 +499,7 @@ export const INITIAL_TOURNAMENT_STATE: TournamentState = {
   activeCategory: 'bachillerato',
   projects: DEFAULT_PROJECTS,
   metrics: {
-    primaria: DEFAULT_METRICS,
+    primaria: PRIMARY_METRICS,
     bachillerato: DEFAULT_METRICS,
   },
   lastUpdated: new Date().toISOString(),

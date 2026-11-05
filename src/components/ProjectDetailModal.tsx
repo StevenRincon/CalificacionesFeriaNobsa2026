@@ -159,7 +159,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 border-b border-slate-800 pb-2 flex items-center justify-between">
                 <span>Evaluaciones de Jurados Oficiales</span>
                 <span className="text-emerald-400 font-mono font-bold">
-                  Promedio: {formatScore(project.averageScore)} / 100
+                  Promedio: {formatScore(project.averageScore)} / {project.categoryId === 'primaria' ? 5 : 100}
                 </span>
               </h3>
 
@@ -181,7 +181,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                           <span className="text-base font-black font-mono text-emerald-400">
                             {scoreItem.totalScore.toFixed(2)}
                           </span>
-                          <span className="text-[10px] text-slate-400 block">/ 100</span>
+                          <span className="text-[10px] text-slate-400 block">/ {project.categoryId === 'primaria' ? 5 : 100}</span>
                         </div>
                       </div>
 
@@ -193,7 +193,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                               {m.name} ({Math.round(m.weight * 100)}%)
                             </span>
                             <span className="text-xs font-mono font-bold text-white">
-                              {scoreItem.scores[m.id]?.toFixed(0) || '—'}
+                              {scoreItem.scores[m.id]?.toFixed(project.categoryId === 'primaria' ? 1 : 0) || '—'}
                             </span>
                           </div>
                         ))}

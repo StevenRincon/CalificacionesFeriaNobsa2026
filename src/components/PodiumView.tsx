@@ -54,6 +54,8 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
             <p className="text-xs text-slate-400 font-mono mt-0.5">
               {isLineCategory
                 ? '// REGLA: Menor tiempo en pista completada + promedio oficial validado'
+                : categoryId === 'primaria'
+                ? '// REGLA: Calificación ponderada por rúbrica de 4 criterios (1 a 5)'
                 : '// REGLA: Calificación ponderada por rúbrica de 5 criterios (10 a 100)'}
             </p>
           </div>
@@ -123,7 +125,7 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
                     <div className="text-[10px] uppercase font-mono text-slate-400">Nota Final:</div>
                     <div className="text-2xl font-black text-white font-mono">
                       {formatScore(second.averageScore)}
-                      <span className="text-xs text-slate-400 font-normal"> / 100</span>
+                      <span className="text-xs text-slate-400 font-normal"> / {categoryId === 'primaria' ? 5 : 100}</span>
                     </div>
                     <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                       {second.evaluationsCount || 0} JURADOS
@@ -200,7 +202,7 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
                     </div>
                     <div className="text-3xl font-black text-amber-300 font-mono">
                       {formatScore(first.averageScore)}
-                      <span className="text-sm text-amber-200/70 font-normal"> / 100</span>
+                      <span className="text-sm text-amber-200/70 font-normal"> / {categoryId === 'primaria' ? 5 : 100}</span>
                     </div>
                     <div className="text-[10px] text-slate-300 font-mono mt-0.5">
                       {first.evaluationsCount || 0} EVALUACIONES OFICIALES
@@ -273,7 +275,7 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
                     <div className="text-[10px] uppercase font-mono text-slate-400">Nota Final:</div>
                     <div className="text-2xl font-black text-white font-mono">
                       {formatScore(third.averageScore)}
-                      <span className="text-xs text-slate-400 font-normal"> / 100</span>
+                      <span className="text-xs text-slate-400 font-normal"> / {categoryId === 'primaria' ? 5 : 100}</span>
                     </div>
                     <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                       {third.evaluationsCount || 0} JURADOS

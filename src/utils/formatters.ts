@@ -112,8 +112,7 @@ export function rankProjects(projects: Project[], categoryId: string): (Project 
     return sorted.map((p, idx) => ({ ...p, rank: idx + 1 }));
   }
 
-  // RUBRIC CATEGORIES (Primaria y Bachillerato):
-  // Sort by averageScore descending (5.0 is top)
+  // Rubric categories rank by average score on their category-specific scale.
   const sorted = [...filtered].sort((a, b) => {
     const aAvg = a.averageScore || 0;
     const bAvg = b.averageScore || 0;

@@ -54,6 +54,8 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
   // Digital Stopwatch State
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
   const [elapsedMs, setElapsedMs] = useState<number>(0);
+  const [activeAttemptNumber, setActiveAttemptNumber] = useState<1 | 2 | 3>(1);
+  const [timerTrackCompleted, setTimerTrackCompleted] = useState(true);
   const timerStartRef = useRef<number>(0);
   const timerRafRef = useRef<number | null>(null);
 
@@ -134,6 +136,18 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
     setSavedSuccessAttempt(null);
   }, [selectedProjectId, selectedProject]);
 
+  useEffect(() => {
+    setTimerRunning(false);
+    setElapsedMs(0);
+    setTimerTrackCompleted(true);
+    const firstAvailableAttempt = ([1, 2, 3] as const).find((attemptNumber) =>
+      !selectedProject?.attempts?.some((attempt) =>
+        attempt.attemptNumber === attemptNumber && attempt.timeSeconds > 0
+      )
+    );
+    setActiveAttemptNumber(firstAvailableAttempt ?? 1);
+  }, [selectedProjectId]);
+
   const handleAttemptChange = (
     attemptNum: 1 | 2 | 3,
     field: keyof LineAttempt,
@@ -154,12 +168,15 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
     soundFx.playBeep(800, 0.1);
   };
 
-  const saveAttempt = async (attemptNum: 1 | 2 | 3) => {
-    if (!selectedProject) return;
+  const saveAttempt = async (
+    attemptNum: 1 | 2 | 3,
+    override?: Partial<LineAttempt>
+  ): Promise<boolean> => {
+    if (!selectedProject) return false;
     const target = draftAttempts.find((a) => a.attemptNumber === attemptNum);
-    if (!target) return;
+    if (!target) return false;
 
-    const timeSeconds = target.timeSeconds > 0 ? target.timeSeconds : getStopwatchSeconds();
+    const timeSeconds = override?.timeSeconds ?? (target.timeSeconds > 0 ? target.timeSeconds : getStopwatchSeconds());
     if (timeSeconds <= 0) {
       const error = 'Registra un tiempo o carga el tiempo del cronómetro antes de guardar.';
       setSaveError(error);
@@ -169,10 +186,10 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
         enteredTime: target.timeSeconds,
         stopwatchTime: getStopwatchSeconds(),
       });
-      return;
+      return false;
     }
 
-    const attemptToSave: LineAttempt = { ...target, timeSeconds };
+    const attemptToSave: LineAttempt = { ...target, ...override, timeSeconds };
     setDraftAttempts((current) => current.map((attempt) =>
       attempt.attemptNumber === attemptNum ? attemptToSave : attempt
     ));
@@ -190,6 +207,7 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
       await onSubmitLineAttempt(selectedProject.id, attemptToSave);
       soundFx.playLapOrFinish();
       setSavedSuccessAttempt(attemptNum);
+      return true;
     } catch (error) {
       console.error('[RoboEval] Error guardando intento de Seguidores de Línea', {
         projectId: selectedProject.id,
@@ -198,9 +216,22 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
         error,
       });
       setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el tiempo.');
+      return false;
     } finally {
       setSavingAttempt(null);
     }
+  };
+
+  const saveStopwatchAttempt = async () => {
+    const saved = await saveAttempt(activeAttemptNumber, {
+      timeSeconds: getStopwatchSeconds(),
+      completedTrack: timerTrackCompleted,
+    });
+    if (!saved) return;
+    setTimerRunning(false);
+    setElapsedMs(0);
+    setTimerTrackCompleted(true);
+    setActiveAttemptNumber(activeAttemptNumber === 3 ? 1 : (activeAttemptNumber + 1) as 1 | 2 | 3);
   };
 
   const stats = selectedProject ? computeLineStats(selectedProject.attempts) : null;
@@ -208,8 +239,10 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner: Digital Stopwatch Widget */}
-      <div className="cyber-card p-5 border border-cyan-400 glow-cyan">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className={`cyber-card p-5 border border-cyan-400 glow-cyan ${
+        timerRunning || elapsedMs > 0 ? 'sticky top-[190px] md:top-36 z-30 shadow-2xl' : ''
+      }`}>
+        <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded bg-cyan-950/80 text-cyan-400 border border-cyan-400/60 glow-cyan">
               <Clock className="w-6 h-6" />
@@ -265,6 +298,55 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
             </div>
           </div>
         </div>
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-end gap-3 border-t border-cyan-500/20 pt-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-cyan-300 font-bold">Participante seleccionado</p>
+            <p className="truncate text-sm font-bold text-white">
+              {selectedProject
+                ? `${selectedProject.code} · ${selectedProject.members?.length ? selectedProject.members.join(', ') : selectedProject.team}`
+                : 'Selecciona un participante para registrar el tiempo'}
+            </p>
+            {selectedProject && <p className="truncate text-xs text-slate-400">{selectedProject.name}</p>}
+          </div>
+          <label className="text-[11px] text-slate-300">
+            INTENTO
+            <select
+              value={activeAttemptNumber}
+              onChange={(event) => setActiveAttemptNumber(Number(event.target.value) as 1 | 2 | 3)}
+              className="mt-1 block min-h-10 rounded-sm border border-slate-600 bg-slate-900 px-3 text-sm text-white"
+            >
+              {[1, 2, 3].map((attempt) => (
+                <option key={attempt} value={attempt}>Intento {attempt}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex min-h-10 items-center gap-2 text-xs text-slate-300">
+            <input
+              type="checkbox"
+              checked={timerTrackCompleted}
+              onChange={(event) => setTimerTrackCompleted(event.target.checked)}
+              className="h-4 w-4 accent-cyan-400"
+            />
+            Pista completada
+          </label>
+          <button
+            type="button"
+            onClick={() => void saveStopwatchAttempt()}
+            disabled={!selectedProject || getStopwatchSeconds() <= 0 || savingAttempt !== null}
+            className="cyber-button-primary min-h-10 px-4 text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" />
+            {savingAttempt === activeAttemptNumber ? 'GUARDANDO…' : `GUARDAR INTENTO #${activeAttemptNumber}`}
+          </button>
+        </div>
+        {saveError && (
+          <p role="alert" className="mt-3 text-xs text-rose-300">{saveError}</p>
+        )}
+        {savedSuccessAttempt !== null && (
+          <p role="status" className="mt-3 text-xs text-emerald-300">
+            Intento #{savedSuccessAttempt} guardado para {selectedProject?.team}.
+          </p>
+        )}
       </div>
 
       {/* Main Grid: Teams List & Attempt Management */}
@@ -305,11 +387,12 @@ export const LineFollowerJudgePanel: React.FC<LineFollowerJudgePanelProps> = ({
                 <button
                   key={proj.id}
                   onClick={() => setSelectedProjectId(proj.id)}
+                  disabled={timerRunning}
                   className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-start justify-between gap-3 ${
                     isSelected
                       ? 'bg-cyan-600/20 border-cyan-500 shadow-md ring-1 ring-cyan-500/50'
                       : 'bg-slate-800/60 border-slate-700/70 hover:bg-slate-800 hover:border-slate-600'
-                  }`}
+                  } ${timerRunning ? 'cursor-not-allowed opacity-70' : ''}`}
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-white leading-snug break-words">{proj.name}</p>

@@ -21,6 +21,10 @@ function normalizeText(value: string) {
   return value.toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+function defaultScore(metric: MetricDefinition) {
+  return Math.round(((metric.min + metric.max) / 2) * 10) / 10;
+}
+
 export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
   categoryId,
   projects,
@@ -57,7 +61,7 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
       setScores({ ...existingEvaluation.scores });
       setFeedback(existingEvaluation.feedback || '');
     } else {
-      setScores(Object.fromEntries(metrics.map((metric) => [metric.id, 70])));
+      setScores(Object.fromEntries(metrics.map((metric) => [metric.id, defaultScore(metric)])));
       setFeedback('');
     }
     setSaveSuccess(false);
@@ -102,18 +106,23 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
   }, [selectedProjectId]);
 
   const currentTotal = metrics.reduce(
-    (total, metric) => total + (scores[metric.id] ?? 70) * metric.weight,
+    (total, metric) => total + (scores[metric.id] ?? defaultScore(metric)) * metric.weight,
     0
   );
 
   const handleScoreChange = (metricId: string, value: number) => {
-    const clamped = Math.max(10, Math.min(100, Math.round(value)));
+    const metric = metrics.find((item) => item.id === metricId);
+    if (!metric) return;
+    const step = metric.max <= 5 ? 0.1 : 1;
+    const clamped = Math.max(metric.min, Math.min(metric.max, Math.round(value / step) * step));
     setScores((current) => ({ ...current, [metricId]: clamped }));
   };
 
   const handleNumericScoreChange = (metricId: string, value: string) => {
+    const metric = metrics.find((item) => item.id === metricId);
+    if (!metric) return;
     if (value === '') {
-      setScores((current) => ({ ...current, [metricId]: 10 }));
+      setScores((current) => ({ ...current, [metricId]: metric.min }));
       return;
     }
     const parsed = Number(value);
@@ -164,7 +173,7 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
                 {evaluation ? (
                   <span className="inline-flex min-h-10 items-center gap-1.5 rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-300">
                     <CheckCircle2 className="w-4 h-4" />
-                    {evaluation.totalScore.toFixed(2)} / 100
+                    {evaluation.totalScore.toFixed(2)} / {metrics[0]?.max ?? 100}
                   </span>
                 ) : (
                   <span className="inline-flex min-h-10 items-center gap-1.5 rounded-sm border border-amber-500/30 bg-amber-500/10 px-3 text-xs font-semibold text-amber-200">
@@ -224,14 +233,17 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
               </div>
               <div className="mt-3 flex items-center justify-between rounded border border-cyan-500/40 bg-cyan-950/60 px-3 py-2 shadow-lg">
                 <span className="text-xs sm:text-sm font-semibold text-slate-200">Puntaje global</span>
-                <span className="text-xl sm:text-2xl font-black text-cyan-300">{currentTotal.toFixed(2)} / 100</span>
+                <span className="text-xl sm:text-2xl font-black text-cyan-300">
+                  {currentTotal.toFixed(2)} / {metrics[0]?.max ?? 100}
+                </span>
               </div>
             </header>
 
             <form onSubmit={handleSave} className="space-y-5 p-4 sm:p-6">
               <div className="space-y-3">
                 {metrics.map((metric, index) => {
-                  const value = scores[metric.id] ?? 70;
+                  const value = scores[metric.id] ?? defaultScore(metric);
+                  const step = metric.max <= 5 ? 0.1 : 1;
                   return (
                     <fieldset key={metric.id} className="rounded border border-cyan-500/20 bg-[#0d111a] p-4">
                       <div className="flex items-start justify-between gap-3">
@@ -239,12 +251,17 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
                         <span className="shrink-0 text-xs text-cyan-300">{Math.round(metric.weight * 100)}%</span>
                       </div>
                       <p className="mt-1 text-xs text-slate-400">{metric.description}</p>
+                      {metric.guide.length > 0 && (
+                        <ul className="mt-2 space-y-1 text-[11px] text-slate-400">
+                          {metric.guide.map((guideline) => <li key={guideline}>{guideline}</li>)}
+                        </ul>
+                      )}
                       <div className="mt-4 flex items-center gap-4">
                         <input
                           type="range"
                           min={metric.min}
                           max={metric.max}
-                          step={1}
+                          step={step}
                           value={value}
                           aria-label={`Puntaje ${metric.name}`}
                           onChange={(event) => handleScoreChange(metric.id, Number(event.target.value))}
@@ -254,7 +271,7 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
                           type="number"
                           min={metric.min}
                           max={metric.max}
-                          step={1}
+                          step={step}
                           value={value}
                           onChange={(event) => handleNumericScoreChange(metric.id, event.target.value)}
                           onBlur={(event) => handleScoreChange(metric.id, Number(event.target.value) || metric.min)}
