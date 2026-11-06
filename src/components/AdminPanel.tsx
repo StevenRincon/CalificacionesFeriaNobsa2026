@@ -16,6 +16,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, o
   const [categoryFilter, setCategoryFilter] = useState<CategoryId | 'all'>(activeCategory);
   const [juryAccounts, setJuryAccounts] = useState<UserAccount[]>([]);
   const [selectedJurorId, setSelectedJurorId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [refreshError, setRefreshError] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -54,6 +55,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, o
   const selectedJuror = juryProgress.find((juror) => juror.id === selectedJurorId);
   const missingProjects = selectedJuror
     ? scoreableProjects.filter((project) => !project.scores?.[selectedJuror.id])
+    : [];
+  const selectedProject = scoreableProjects.find((project) => project.id === selectedProjectId);
+  const missingJurors = selectedProject
+    ? juryProgress.filter((juror) => !selectedProject.scores?.[juror.id])
     : [];
 
   useEffect(() => {
@@ -206,7 +211,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, o
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setSelectedJurorId(null);
+            if (event.target === event.currentTarget) {
+              setSelectedProjectId(null);
+              setSelectedJurorId(null);
+            }
           }}
         >
           <section
@@ -216,17 +224,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, o
             className="cyber-card flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden border-cyan-400/50 shadow-2xl"
           >
             <header className="flex items-center justify-between gap-4 border-b border-cyan-500/20 bg-[#0a0d14] px-5 py-4">
-              <div>
+              <div className="min-w-0">
+                {selectedProject && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProjectId(null)}
+                    className="mb-1 text-[11px] font-semibold text-cyan-300 hover:text-white"
+                  >
+                    ← Volver a proyectos pendientes
+                  </button>
+                )}
                 <h2 id="missing-projects-title" className="text-base font-bold text-white">
-                  Proyectos pendientes de {selectedJuror.name}
+                  {selectedProject ? `Jurados pendientes: ${selectedProject.name}` : `Proyectos pendientes de ${selectedJuror.name}`}
                 </h2>
                 <p className="mt-1 text-xs text-slate-400">
-                  {missingProjects.length} {missingProjects.length === 1 ? 'proyecto pendiente' : 'proyectos pendientes'}
+                  {selectedProject
+                    ? `${missingJurors.length} ${missingJurors.length === 1 ? 'jurado pendiente' : 'jurados pendientes'} · ${selectedProject.code}`
+                    : `${missingProjects.length} ${missingProjects.length === 1 ? 'proyecto pendiente' : 'proyectos pendientes'}`}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedJurorId(null)}
+                onClick={() => {
+                  setSelectedProjectId(null);
+                  setSelectedJurorId(null);
+                }}
                 className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
                 aria-label="Cerrar proyectos pendientes"
               >
@@ -234,26 +256,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, o
               </button>
             </header>
             <div className="overflow-y-auto p-5">
-              {missingProjects.length > 0 ? (
+              {selectedProject ? (
+                missingJurors.length > 0 ? (
+                  <ul className="space-y-2">
+                    {missingJurors.map((juror) => (
+                      <li key={juror.id} className="flex items-center justify-between gap-3 rounded border border-slate-800 bg-[#0a0d14] p-3">
+                        <span className="text-sm font-semibold text-white">{juror.name}</span>
+                        <span className="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] font-mono text-amber-300">
+                          PENDIENTE
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="rounded border border-emerald-500/20 bg-emerald-500/5 p-5 text-center text-sm text-emerald-300">
+                    Todos los jurados evaluadores ya calificaron este proyecto.
+                  </p>
+                )
+              ) : missingProjects.length > 0 ? (
                 <ul className="space-y-2">
                   {missingProjects.map((project) => {
                     const category = CATEGORIES.find((item) => item.id === project.categoryId);
                     return (
-                      <li key={project.id} className="rounded border border-slate-800 bg-[#0a0d14] p-3">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-semibold text-white">{project.name}</p>
-                            <p className="mt-1 text-xs text-slate-400">
-                              {project.team} · {project.institution}
-                            </p>
+                      <li key={project.id}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedProjectId(project.id)}
+                          className="w-full rounded border border-slate-800 bg-[#0a0d14] p-3 text-left hover:border-cyan-500/50 hover:bg-cyan-500/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+                          aria-haspopup="dialog"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-white">{project.name}</p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                {project.team} · {project.institution}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2 font-mono text-[10px]">
+                              <span className="rounded border border-cyan-500/30 px-2 py-1 text-cyan-300">
+                                {project.code}
+                              </span>
+                              <span className="text-slate-400">{category?.shortName || project.categoryId}</span>
+                              <span className="text-cyan-300" aria-hidden="true">→</span>
+                            </div>
                           </div>
-                          <div className="flex shrink-0 items-center gap-2 font-mono text-[10px]">
-                            <span className="rounded border border-cyan-500/30 px-2 py-1 text-cyan-300">
-                              {project.code}
-                            </span>
-                            <span className="text-slate-400">{category?.shortName || project.categoryId}</span>
-                          </div>
-                        </div>
+                        </button>
                       </li>
                     );
                   })}
