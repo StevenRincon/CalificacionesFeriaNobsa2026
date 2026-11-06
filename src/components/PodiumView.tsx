@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { Trophy, Medal, Award, Clock, PartyPopper } from 'lucide-react';
 import { CategoryId, Project } from '../types.ts';
@@ -16,10 +16,12 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
   projects,
   onSelectProject,
 }) => {
+  const [revealedPlaces, setRevealedPlaces] = useState(0);
   const ranked = rankProjects(projects, categoryId);
   const first = ranked[0];
   const second = ranked[1];
   const third = ranked[2];
+  const nextPlace = [3, 2, 1][revealedPlaces];
 
   const triggerCelebration = () => {
     soundFx.playFanfare();
@@ -61,20 +63,32 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={triggerCelebration}
-          className="cyber-button-primary px-4 py-2 text-xs flex items-center gap-2 cursor-pointer"
-        >
-          <PartyPopper className="w-4 h-4 text-slate-950" />
-          <span>¡CELEBRAR CON CONFETI!</span>
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setRevealedPlaces((places) => Math.min(places + 1, 3))}
+            disabled={revealedPlaces === 3}
+            className="cyber-button-primary px-4 py-2 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {nextPlace ? `REVELAR ${nextPlace}° PUESTO` : 'PODIO COMPLETO'}
+          </button>
+          <button
+            type="button"
+            onClick={triggerCelebration}
+            className="cyber-button-primary px-4 py-2 text-xs flex items-center gap-2 cursor-pointer"
+          >
+            <PartyPopper className="w-4 h-4 text-slate-950" />
+            <span>¡CELEBRAR CON CONFETI!</span>
+          </button>
+        </div>
       </div>
 
       {/* Podium Pedestals Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-8 items-end max-w-4xl mx-auto relative z-10">
         
         {/* --- 2ND PLACE (SILVER) --- */}
-        <div className="order-2 md:order-1 flex flex-col items-center">
+        {revealedPlaces >= 2 && (
+        <div className="order-2 md:order-1 flex flex-col items-center animate-fade-in">
           {second ? (
             <div
               onClick={() => onSelectProject?.(second)}
@@ -142,9 +156,11 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
             <span className="text-3xl font-black font-display text-slate-500/30">2</span>
           </div>
         </div>
+        )}
 
         {/* --- 1ST PLACE (GOLD) --- */}
-        <div className="order-1 md:order-2 flex flex-col items-center">
+        {revealedPlaces >= 3 && (
+        <div className="order-1 md:order-2 flex flex-col items-center animate-fade-in">
           {first ? (
             <div
               onClick={() => onSelectProject?.(first)}
@@ -216,9 +232,11 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
             <span className="text-4xl font-black font-display text-amber-400/40">1</span>
           </div>
         </div>
+        )}
 
         {/* --- 3RD PLACE (BRONZE) --- */}
-        <div className="order-3 flex flex-col items-center">
+        {revealedPlaces >= 1 && (
+        <div className="order-3 flex flex-col items-center animate-fade-in">
           {third ? (
             <div
               onClick={() => onSelectProject?.(third)}
@@ -286,6 +304,7 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
             <span className="text-2xl font-black font-display text-amber-600/30">3</span>
           </div>
         </div>
+        )}
 
       </div>
     </div>

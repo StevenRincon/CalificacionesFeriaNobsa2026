@@ -285,6 +285,7 @@ export default function App() {
               <>
             {/* Podium component for active category */}
             <PodiumView
+              key={activeCategory}
               categoryId={activeCategory}
               projects={state.projects}
               onSelectProject={(p) => setSelectedDetailProject(p)}
