@@ -287,7 +287,6 @@ export default function App() {
             <PodiumView
               categoryId={activeCategory}
               projects={state.projects}
-              showEvaluationCount={currentUser.role !== 'viewer'}
               onSelectProject={(p) => setSelectedDetailProject(p)}
             />
 

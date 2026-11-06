@@ -8,14 +8,12 @@ import { soundFx } from '../utils/audio.ts';
 interface PodiumViewProps {
   categoryId: CategoryId;
   projects: Project[];
-  showEvaluationCount: boolean;
   onSelectProject?: (project: Project) => void;
 }
 
 export const PodiumView: React.FC<PodiumViewProps> = ({
   categoryId,
   projects,
-  showEvaluationCount,
   onSelectProject,
 }) => {
   const ranked = rankProjects(projects, categoryId);
@@ -129,11 +127,6 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
                       {formatScore(second.averageScore)}
                       <span className="text-xs text-slate-400 font-normal"> / {categoryId === 'primaria' ? 5 : 100}</span>
                     </div>
-                    {showEvaluationCount && (
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                        {second.evaluationsCount || 0} JURADOS
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -208,11 +201,6 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
                       {formatScore(first.averageScore)}
                       <span className="text-sm text-amber-200/70 font-normal"> / {categoryId === 'primaria' ? 5 : 100}</span>
                     </div>
-                    {showEvaluationCount && (
-                      <div className="text-[10px] text-slate-300 font-mono mt-0.5">
-                        {first.evaluationsCount || 0} EVALUACIONES OFICIALES
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -283,11 +271,6 @@ export const PodiumView: React.FC<PodiumViewProps> = ({
                       {formatScore(third.averageScore)}
                       <span className="text-xs text-slate-400 font-normal"> / {categoryId === 'primaria' ? 5 : 100}</span>
                     </div>
-                    {showEvaluationCount && (
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                        {third.evaluationsCount || 0} JURADOS
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

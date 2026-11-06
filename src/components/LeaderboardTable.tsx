@@ -349,17 +349,6 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
                       )}
                     </td>
 
-                    {/* Jurados count */}
-                    <td className="py-3.5 px-4 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
-                        count > 0
-                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                          : 'bg-slate-800 text-slate-500 border-slate-700'
-                      }`}>
-                        {count} calificado(s)
-                      </span>
-                    </td>
-
                     {/* Action */}
                     <td className="py-3.5 px-4 text-right">
                       <button
