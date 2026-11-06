@@ -282,8 +282,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
                 <th className="py-3 px-4 text-center bg-blue-950/20 text-blue-300 font-bold">
                   Nota Final ({categoryId === 'primaria' ? '1-5' : '10-100'})
                 </th>
-                <th className="py-3 px-4 text-center">Jurados</th>
-                <th className="py-3 px-4 text-right">Detalle</th>
+                
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
