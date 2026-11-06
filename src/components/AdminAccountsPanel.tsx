@@ -9,7 +9,11 @@ const roleLabels = {
 
 type JuryRole = keyof typeof roleLabels;
 
-export const AdminAccountsPanel: React.FC = () => {
+interface AdminAccountsPanelProps {
+  onAccountsChange: (accounts: UserAccount[]) => void;
+}
+
+export const AdminAccountsPanel: React.FC<AdminAccountsPanelProps> = ({ onAccountsChange }) => {
   const [accounts, setAccounts] = useState<UserAccount[]>([]);
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -22,7 +26,9 @@ export const AdminAccountsPanel: React.FC = () => {
     const response = await fetch('/api/admin/accounts');
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'No se pudieron cargar las cuentas.');
-    setAccounts(result.accounts as UserAccount[]);
+    const loadedAccounts = result.accounts as UserAccount[];
+    setAccounts(loadedAccounts);
+    onAccountsChange(loadedAccounts);
   };
 
   useEffect(() => {
@@ -44,7 +50,9 @@ export const AdminAccountsPanel: React.FC = () => {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'No se pudo crear el acceso.');
-      setAccounts((current) => [...current, result.user as UserAccount]);
+      const newAccounts = [...accounts, result.user as UserAccount];
+      setAccounts(newAccounts);
+      onAccountsChange(newAccounts);
       setName('');
       setUsername('');
       setPassword('');

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, Award, Download, Play, Pause, ShieldCheck, RefreshCw } from 'lucide-react';
-import { CategoryId, TournamentState } from '../types.ts';
+import { Activity, Award, ClipboardCheck, Download, Play, Pause, ShieldCheck, RefreshCw } from 'lucide-react';
+import { CategoryId, TournamentState, UserAccount } from '../types.ts';
 import { CATEGORIES } from '../data/defaultData.ts';
 import { formatScore, formatTime } from '../utils/formatters.ts';
 import { AdminAccountsPanel } from './AdminAccountsPanel.tsx';
@@ -14,6 +14,7 @@ interface AdminPanelProps {
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, onUpdateEventStatus, onRefreshProjects }) => {
   const [categoryFilter, setCategoryFilter] = useState<CategoryId | 'all'>(activeCategory);
+  const [juryAccounts, setJuryAccounts] = useState<UserAccount[]>([]);
   const [refreshError, setRefreshError] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -25,6 +26,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, o
     () => state.projects.filter((project) => categoryFilter === 'all' || project.categoryId === categoryFilter),
     [categoryFilter, state.projects]
   );
+  const scoreableProjects = useMemo(
+    () => state.projects.filter((project) => project.categoryId !== 'linea'),
+    [state.projects]
+  );
+  const juryProgress = useMemo(() => juryAccounts
+    .filter((account) => account.role === 'jurado_primaria' || account.role === 'jurado_bachillerato')
+    .map((account) => {
+      const primaryCount = scoreableProjects.filter(
+        (project) => project.categoryId === 'primaria' && project.scores?.[account.id]
+      ).length;
+      const highSchoolCount = scoreableProjects.filter(
+        (project) => project.categoryId === 'bachillerato' && project.scores?.[account.id]
+      ).length;
+
+      return {
+        id: account.id,
+        name: account.name,
+        primaryCount,
+        highSchoolCount,
+        total: primaryCount + highSchoolCount,
+      };
+    })
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es')),
+  [juryAccounts, scoreableProjects]);
 
   const exportToCsv = () => {
     const rows = [
@@ -98,7 +123,63 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ state, activeCategory, o
         </div>
       </section>
 
-      <AdminAccountsPanel />
+      <AdminAccountsPanel onAccountsChange={setJuryAccounts} />
+
+      <section className="cyber-card p-5 border-cyan-500/25 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="w-5 h-5 text-cyan-400" />
+            <div>
+              <h3 className="text-sm font-bold text-white">Proyectos calificados por jurado</h3>
+              <p className="text-xs text-slate-400">Avance calculado con las calificaciones guardadas, actualizado en tiempo real.</p>
+            </div>
+          </div>
+          <span className="text-[11px] font-mono text-slate-400">
+            {scoreableProjects.length} proyectos con evaluación por rúbrica
+          </span>
+        </div>
+
+        {juryProgress.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {juryProgress.map((juror) => {
+              const progress = scoreableProjects.length > 0
+                ? Math.round((juror.total / scoreableProjects.length) * 100)
+                : 0;
+              return (
+                <article key={juror.id} className="rounded border border-slate-800 bg-[#0a0d14] p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{juror.name}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-slate-500">Jurado evaluador</p>
+                    </div>
+                    <p className="font-mono text-lg font-bold text-cyan-300">
+                      {juror.total}<span className="text-xs text-slate-500">/{scoreableProjects.length}</span>
+                    </p>
+                  </div>
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-slate-800"
+                    role="progressbar"
+                    aria-label={`Avance de ${juror.name}`}
+                    aria-valuemin={0}
+                    aria-valuemax={scoreableProjects.length}
+                    aria-valuenow={juror.total}
+                  >
+                    <div className="h-full rounded-full bg-cyan-400 transition-all" style={{ width: `${progress}%` }} />
+                  </div>
+                  <div className="flex justify-between gap-3 text-[11px] text-slate-400">
+                    <span>Primaria: <strong className="text-emerald-300">{juror.primaryCount}</strong></span>
+                    <span>Bachillerato: <strong className="text-blue-300">{juror.highSchoolCount}</strong></span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="rounded border border-slate-800 bg-[#0a0d14] p-4 text-xs text-slate-400">
+            No hay cuentas de jurado evaluador para mostrar.
+          </p>
+        )}
+      </section>
 
       <section className="cyber-card p-4 border-cyan-500/25 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-slate-300">
