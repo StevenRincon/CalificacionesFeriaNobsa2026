@@ -37,6 +37,8 @@ En celular, la página inicial ofrece acceso directo a la evaluación o a podios
 
 El guardado de calificaciones espera confirmación del servidor antes de mostrarse como exitoso. MongoDB actualiza atómicamente el campo de cada jurado dentro de la evaluación del proyecto, por lo que las calificaciones simultáneas de jurados distintos se conservan; ante un error, el formulario lo informa y permite reintentar.
 
+Mientras se califica, el formulario respalda automáticamente el borrador en el almacenamiento local del navegador, separado por jurado y proyecto. Si se pierde internet, el borrador permanece en ese mismo dispositivo y se puede reintentar el guardado al recuperar la conexión. El respaldo local no reemplaza la confirmación del servidor ni se comparte entre dispositivos o navegadores; no borres los datos del sitio hasta que aparezca la confirmación de guardado.
+
 Primaria / Educativos usa cuatro criterios con notas de 1.0 a 5.0 en incrementos de 0.1 (25% cada uno): Innovación y originalidad, Diseño técnico y funcionalidad, Sustentación y dominio temático, e Impacto, acabado y viabilidad. Automatización / Bachillerato conserva cinco criterios con calificaciones enteras de 10 a 100: Innovación y creatividad (30%), Estética y presentación (20%), Impacto del proyecto al entorno (15%), Diseño y claridad del póster (10%) y Sustentación (25%). Las evaluaciones antiguas de proyectos educativos calificadas con la rúbrica de 100 puntos se convierten al formato de Primaria al consultarlas; el criterio técnico sin equivalente anterior se muestra como 3.5/5 y queda indicado en las observaciones.
 
 Para validar cambios: `npm run lint` y `npm run build`.

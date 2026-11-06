@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Clock, MessageSquare, Save, Search, Sliders, X } from 'lucide-react';
 import { CategoryId, MetricDefinition, Project, UserAccount } from '../types.ts';
 import { soundFx } from '../utils/audio.ts';
@@ -25,6 +25,10 @@ function defaultScore(metric: MetricDefinition) {
   return Math.round(((metric.min + metric.max) / 2) * 10) / 10;
 }
 
+function scoreDraftKey(userId: string, projectId: string) {
+  return `roboeval:score-draft:${encodeURIComponent(userId)}:${encodeURIComponent(projectId)}`;
+}
+
 export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
   categoryId,
   projects,
@@ -39,6 +43,10 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [loadedDraftKey, setLoadedDraftKey] = useState('');
+  const [draftStorageError, setDraftStorageError] = useState('');
+  const loadedDraftKeyRef = useRef('');
 
   const categoryProjects = useMemo(() => {
     const query = normalizeText(searchTerm.trim());
@@ -59,19 +67,72 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
 
   useEffect(() => {
     if (!selectedProject) return;
-    if (existingEvaluation) {
-      setScores({ ...existingEvaluation.scores });
-      setFeedback(existingEvaluation.feedback || '');
-    } else {
-      setScores(Object.fromEntries(metrics.map((metric) => [metric.id, defaultScore(metric)])));
-      setFeedback('');
+    const key = scoreDraftKey(currentUser.id, selectedProject.id);
+    if (loadedDraftKeyRef.current === key) return;
+    loadedDraftKeyRef.current = key;
+    try {
+      const savedDraft = localStorage.getItem(key);
+      if (savedDraft) {
+        const draft: unknown = JSON.parse(savedDraft);
+        if (
+          draft &&
+          typeof draft === 'object' &&
+          'scores' in draft &&
+          draft.scores !== null &&
+          typeof draft.scores === 'object' &&
+          'feedback' in draft &&
+          typeof draft.feedback === 'string'
+        ) {
+          setScores({ ...draft.scores as Record<string, number> });
+          setFeedback(draft.feedback);
+        } else {
+          throw new Error('El borrador local tiene un formato inválido.');
+        }
+      } else if (existingEvaluation) {
+        setScores({ ...existingEvaluation.scores });
+        setFeedback(existingEvaluation.feedback || '');
+      } else {
+        setScores(Object.fromEntries(metrics.map((metric) => [metric.id, defaultScore(metric)])));
+        setFeedback('');
+      }
+      setDraftStorageError('');
+      setLoadedDraftKey(key);
+    } catch (error) {
+      loadedDraftKeyRef.current = '';
+      setDraftStorageError(error instanceof Error
+        ? `No se pudo recuperar el borrador local: ${error.message}`
+        : 'No se pudo recuperar el borrador local.');
     }
-  }, [selectedProject, existingEvaluation, metrics]);
+  }, [selectedProject, currentUser.id, existingEvaluation, metrics]);
+
+  useEffect(() => {
+    if (!selectedProject) return;
+    const key = scoreDraftKey(currentUser.id, selectedProject.id);
+    if (loadedDraftKey !== key) return;
+    try {
+      localStorage.setItem(key, JSON.stringify({ scores, feedback }));
+      setDraftStorageError('');
+    } catch (error) {
+      setDraftStorageError(error instanceof Error
+        ? `No se pudo respaldar el avance en este navegador: ${error.message}`
+        : 'No se pudo respaldar el avance en este navegador.');
+    }
+  }, [currentUser.id, feedback, loadedDraftKey, scores, selectedProject]);
 
   useEffect(() => {
     setSaveSuccess(false);
     setSaveError('');
   }, [selectedProjectId]);
+
+  useEffect(() => {
+    const updateConnection = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', updateConnection);
+    window.addEventListener('offline', updateConnection);
+    return () => {
+      window.removeEventListener('online', updateConnection);
+      window.removeEventListener('offline', updateConnection);
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedProjectId) return;
@@ -138,16 +199,40 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!selectedProject || isSaving) return;
+    const draftKey = scoreDraftKey(currentUser.id, selectedProject.id);
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({ scores, feedback }));
+      setDraftStorageError('');
+      setLoadedDraftKey(draftKey);
+    } catch (error) {
+      setDraftStorageError(error instanceof Error
+        ? `No se pudo respaldar el avance en este navegador: ${error.message}`
+        : 'No se pudo respaldar el avance en este navegador.');
+      setSaveError('No se pudo crear el respaldo local. No cierres esta página y vuelve a intentar.');
+      return;
+    }
     setIsSaving(true);
     setSaveError('');
     setSaveSuccess(false);
     try {
       await onSubmitScore(selectedProject.id, currentUser.id, currentUser.name, scores, feedback);
+      try {
+        localStorage.removeItem(draftKey);
+        setLoadedDraftKey('');
+        loadedDraftKeyRef.current = '';
+      } catch (error) {
+        setDraftStorageError(error instanceof Error
+          ? `La calificación se guardó, pero no se pudo limpiar el borrador local: ${error.message}`
+          : 'La calificación se guardó, pero no se pudo limpiar el borrador local.');
+      }
       soundFx.playLapOrFinish();
       setSaveSuccess(true);
       window.setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'No se pudo guardar la calificación.');
+      setSaveError(
+        `${error instanceof Error ? error.message : 'No se pudo guardar la calificación.'} ` +
+        'El avance quedó respaldado en este navegador; reintenta cuando vuelva la conexión.'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -314,6 +399,8 @@ export const JuryEvaluationPanel: React.FC<JuryEvaluationPanelProps> = ({
               <div className="sticky bottom-0 flex flex-col-reverse gap-2 border-t border-cyan-500/20 bg-[#080b12] py-3 sm:flex-row sm:justify-end">
                 {saveSuccess && <p role="status" className="self-center text-sm text-emerald-300">Calificación guardada y sincronizada.</p>}
                 {saveError && <p role="alert" className="self-center text-sm text-rose-300">{saveError}</p>}
+                {!isOnline && <p role="status" className="self-center text-sm text-amber-200">Sin conexión: el borrador se conserva en este dispositivo. Reintenta al volver internet.</p>}
+                {draftStorageError && <p role="alert" className="self-center text-sm text-rose-300">{draftStorageError}</p>}
                 <button
                   type="button"
                   onClick={() => setSelectedProjectId(null)}
